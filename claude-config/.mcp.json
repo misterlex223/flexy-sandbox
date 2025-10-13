@@ -1,0 +1,19 @@
+{
+  "mcp": {
+    "servers": {
+      "github": {
+        "type": "stdio",
+        "command": "gh",
+        "args": ["mcp", "server"],
+        "env": {
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        }
+      },
+      "docker": {
+        "type": "stdio",
+        "command": "docker",
+        "args": ["mcp", "server"]
+      }
+    }
+  }
+}
