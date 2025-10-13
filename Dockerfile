@@ -44,6 +44,21 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | s
     && sudo apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
+# 複製 cospec-ai 應用程式
+COPY cospec-ai/server /cospec-ai/server
+COPY cospec-ai/app-react /cospec-ai/app-react
+COPY cospec-ai/docker-entrypoint.sh /usr/local/bin/cospec-entrypoint.sh
+
+# 安裝 cospec-ai 依賴並構建前端 (as root)
+# Build without TypeScript type checking since cospec-ai is an independent project
+RUN cd /cospec-ai/server && npm install && \
+    cd /cospec-ai/app-react && npm install && npx vite build --mode production && \
+    chmod +x /usr/local/bin/cospec-entrypoint.sh
+
+# 建立 markdown 目錄並設置權限
+RUN mkdir -p /home/flexy/markdown && \
+    chown -R flexy:flexy /home/flexy/markdown /cospec-ai
+
 # 複製啟動腳本和配置腳本
 COPY init.sh /usr/local/bin/init.sh
 COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
@@ -80,6 +95,11 @@ ENV ANTHROPIC_BASE_URL=
 ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
 
+# 設定 CoSpec AI 環境變數
+ENV MARKDOWN_DIR=/home/flexy/markdown
+ENV COSPEC_PORT=8080
+ENV COSPEC_API_PORT=8081
+
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
 
@@ -87,5 +107,7 @@ SHELL ["/bin/bash", "-c"]
 ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
 
-# Expose the default ttyd port
+# Expose the default ttyd port and CoSpec AI ports
 EXPOSE 7681
+EXPOSE 8080
+EXPOSE 8081

@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Claude Code**: AI 輔助開發工具
 - **ttyd + tmux**: 終端分享和持久化會話
 - **kai-notify**: LINE 通知整合 (npm package)
+- **CoSpec AI**: 整合的 Markdown 編輯器 (port 8080/8081)
 
 ### 使用者介面
 所有輸出應使用繁體中文。
@@ -29,6 +30,10 @@ flexy-sandbox/
 ├── claude-config/          # Claude Code 配置目錄
 │   ├── CLAUDE.md          # 容器內的 Claude 配置
 │   └── .mcp.json          # MCP 伺服器配置
+├── cospec-ai/              # CoSpec AI Markdown 編輯器 (submodule)
+│   ├── server/            # 後端 API 服務
+│   ├── app-react/         # React 前端應用
+│   └── docker-entrypoint.sh
 └── scripts/                # 工具腳本目錄
     └── build-docker.sh    # Docker 建置腳本
 ```
@@ -51,6 +56,9 @@ flexy-sandbox/
 - `ANTHROPIC_BASE_URL`: Claude API 基礎 URL (可選)
 - `ANTHROPIC_MODEL`: Claude 主要模型名稱
 - `ANTHROPIC_SMALL_FAST_MODEL`: Claude 快速模型名稱
+- `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: `/home/flexy/markdown`)
+- `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 8080)
+- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 8081)
 
 #### init.sh (init.sh:1-65)
 容器啟動腳本，執行以下任務：
@@ -105,18 +113,23 @@ docker run -it --rm \
   flexy-dev-sandbox
 ```
 
-**WebTTY 模式（網頁終端共享）**
+**WebTTY 模式（網頁終端共享 + Markdown 編輯器）**
 ```bash
-# 啟動 WebTTY 模式，支援多客戶端共享同一 tmux 會話
+# 啟動 WebTTY 模式，支援多客戶端共享同一 tmux 會話，並啟用 Markdown 編輯器
 docker run -d --rm \
   -p 7681:7681 \
+  -p 8080:8080 \
+  -p 8081:8081 \
   -e ENABLE_WEBTTY=true \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
   -v $(pwd):/home/flexy/projects \
+  -v $(pwd)/markdown:/home/flexy/markdown \
   --name flexy-webtty \
   flexy-dev-sandbox
 
-# 在瀏覽器中開啟 http://localhost:7681
+# 在瀏覽器中開啟:
+# - http://localhost:7681 - Web Terminal (ttyd + tmux)
+# - http://localhost:8080 - CoSpec AI Markdown Editor
 # 所有客戶端將共享同一個 tmux 會話，適合協作開發
 ```
 
@@ -233,8 +246,10 @@ exec ttyd -p 7681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
 - 具有 sudo 權限（但預設不使用）
 
 ### 網路服務
-- Port 7681: ttyd 網頁終端（可選）
-- 需要使用 `-p 7681:7681` 映射才能從主機存取
+- Port 7681: ttyd 網頁終端（WebTTY 模式）
+- Port 8080: CoSpec AI Markdown Editor 前端
+- Port 8081: CoSpec AI API 服務
+- 需要使用 `-p` 參數映射才能從主機存取
 
 ## Git 工作流程
 
@@ -283,3 +298,72 @@ RUN npm install -g @anthropic-ai/claude-code kai-notify your-package
 
 ### 添加新的 MCP 伺服器
 編輯 `claude-config/.mcp.json` 添加新的伺服器定義。
+
+## CoSpec AI Markdown 編輯器
+
+### 概述
+
+CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即所得的編輯體驗。它在容器啟動時自動啟動，無需手動配置。
+
+### 功能特點
+
+- **樹狀文件瀏覽器**: 左側邊欄顯示所有 Markdown 文件的目錄結構
+- **所見即所得編輯**: 基於 Vditor 的強大編輯器
+- **即時預覽**: 支援分屏預覽和即時渲染
+- **文件操作**: 創建、讀取、更新和刪除 Markdown 文件
+- **實時同步**: 所有變更直接寫入主機文件系統
+
+### 訪問方式
+
+啟動容器後，可通過以下 URL 訪問：
+
+- **前端界面**: `http://localhost:8080`
+- **API 服務**: `http://localhost:8081`
+
+### 環境變數配置
+
+- `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: `/home/flexy/markdown`）
+- `COSPEC_PORT`: 前端服務端口（預設: 8080）
+- `COSPEC_API_PORT`: API 服務端口（預設: 8081）
+
+### 自定義 Markdown 目錄
+
+```bash
+docker run -d --rm \
+  -p 7681:7681 \
+  -p 8080:8080 \
+  -p 8081:8081 \
+  -e ENABLE_WEBTTY=true \
+  -e MARKDOWN_DIR=/home/flexy/my-docs \
+  -v $(pwd)/my-docs:/home/flexy/my-docs \
+  flexy-dev-sandbox
+```
+
+### 日誌查看
+
+如果 CoSpec AI 服務出現問題，可以查看日誌：
+
+```bash
+docker exec -it <container-name> cat /home/flexy/cospec-api.log
+docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
+```
+
+### 技術架構
+
+- **前端**: React + TypeScript + Vite + Vditor
+- **後端**: Node.js + Express + Socket.io
+- **文件監控**: Chokidar (實時文件變更監控)
+- **部署方式**: 前端使用 `serve` 提供靜態文件，後端運行 Node.js 服務
+
+### 與 Kai 整合
+
+當 Flexy 容器被 Kai 管理時：
+- ttyd 終端可通過 Kai 代理在 `/flexy/:id/shell` 訪問
+- CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問（需要 Kai 配置 8080 端口代理）
+
+### 源碼位置
+
+CoSpec AI 是作為 git submodule 整合的：
+- GitHub: https://github.com/misterlex223/cospec-ai
+- 本地路徑: `cospec-ai/`（submodule）
+- 容器內路徑: `/cospec-ai/`
