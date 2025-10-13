@@ -61,5 +61,21 @@ echo "- git                # Git 版本控制"
 echo "- gh                 # GitHub CLI"
 echo ""
 
-# 啟動 bash shell
-exec "$@"
+# 檢查是否啟用 WebTTY 模式
+# 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + tmux
+if [ "$ENABLE_WEBTTY" = "true" ]; then
+  echo "========================================"
+  echo "  啟動 WebTTY 模式"
+  echo "========================================"
+  echo "WebTTY 將在 http://localhost:7681 啟動"
+  echo "所有客戶端將共享同一個 tmux 會話"
+  echo ""
+
+  # 使用 ttyd 啟動共享的 tmux 會話
+  # -p 7681: 監聽 7681 埠
+  # tmux new -A -s shared_session: 建立或附加到名為 shared_session 的會話
+  exec ttyd -p 7681 tmux new -A -s shared_session
+else
+  # 預設模式：啟動 bash shell
+  exec "$@"
+fi

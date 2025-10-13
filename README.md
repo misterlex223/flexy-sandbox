@@ -61,6 +61,33 @@ docker run -it --rm \
   flexy-dev-sandbox
 ```
 
+### 使用 WebTTY 模式（網頁終端）
+
+啟用 WebTTY 模式可以透過瀏覽器存取共享的終端會話：
+
+```bash
+# 啟動 WebTTY 模式
+docker run -d --rm \
+  -p 7681:7681 \
+  -e ENABLE_WEBTTY=true \
+  -e ANTHROPIC_AUTH_TOKEN=your_token \
+  --name flexy-webtty \
+  flexy-dev-sandbox
+
+# 然後在瀏覽器中開啟 http://localhost:7681
+```
+
+**WebTTY 模式特點：**
+- 所有連線的客戶端共享同一個 tmux 會話
+- 多人可以同時查看和操作同一個終端
+- 適合配對程式設計或遠端協作
+- 會話持久化，斷線後重新連線可恢復
+
+**停止 WebTTY 容器：**
+```bash
+docker stop flexy-webtty
+```
+
 ### 執行一次性命令
 
 ```bash

@@ -5,6 +5,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 更新套件列表並安裝基本工具
+# Install ttyd and tmux
+# ttyd: for sharing the terminal over the web
+# tmux: for creating a persistent, shareable session
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -15,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     sudo \
+    ttyd \
+    tmux \
     && rm -rf /var/lib/apt/lists/*
 
 # 建立非 root 使用者
@@ -81,3 +86,6 @@ SHELL ["/bin/bash", "-c"]
 # 設定入口點
 ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
+
+# Expose the default ttyd port
+EXPOSE 7681
