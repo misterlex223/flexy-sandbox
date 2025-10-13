@@ -39,35 +39,31 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | s
     && sudo apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# 安裝 Claude Code CLI
-RUN curl -fsSL https://claude.ai/install.sh | bash
-
-# 安裝 kai-notify
-RUN npm install -g kai-notify
-
-# 設定工作目錄
-WORKDIR /home/flexy
-
-# 複製啟動腳本
+# 複製啟動腳本和配置腳本
 COPY init.sh /usr/local/bin/init.sh
-RUN sudo chmod +x /usr/local/bin/init.sh \
-    && sudo chown flexy:flexy /usr/local/bin/init.sh
-
-# 複製 Claude Code 設定檔案
-COPY claude-config/.mcp.json /home/flexy/.mcp.json
-COPY claude-config/CLAUDE.md /home/flexy/.claude/CLAUDE.md
-RUN sudo chown flexy:flexy /home/flexy/.mcp.json \
-    && sudo chown -R flexy:flexy /home/flexy/.claude
+COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
+RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh
 
 # 切換到 flexy 使用者
 USER flexy
+
+# 建立用戶目錄結構並安裝全局包
+RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
+    npm config set prefix '/home/flexy/.local' && \
+    npm install -g @anthropic-ai/claude-code kai-notify
+
+# 複製 Claude Code MCP 配置文件
+COPY claude-config/.mcp.json /home/flexy/.mcp.json
+
+# 配置 MCP 伺服器
+RUN /usr/local/bin/configure-mcp.sh
 
 # 設定環境變數
 ENV HOME=/home/flexy
 ENV PATH=$PATH:$HOME/.local/bin:/usr/local/bin
 
 # 設定 Node.js 環境變數
-ENV NODE_PATH=/usr/lib/node_modules
+ENV NODE_PATH=/home/flexy/.local/lib/node_modules
 
 # 設定 Python 環境變數
 ENV PYTHONDONTWRITEBYTECODE=1
