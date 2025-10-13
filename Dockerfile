@@ -42,6 +42,9 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | s
 # 安裝 Claude Code CLI
 RUN curl -fsSL https://claude.ai/install.sh | bash
 
+# 安裝 kai-notify
+RUN npm install -g kai-notify
+
 # 設定工作目錄
 WORKDIR /home/flexy
 

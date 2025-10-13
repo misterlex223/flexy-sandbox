@@ -13,6 +13,11 @@
         "type": "stdio",
         "command": "docker",
         "args": ["mcp", "server"]
+      },
+      "kai-notify": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["kai-notify", "--mcp"]
       }
     }
   }

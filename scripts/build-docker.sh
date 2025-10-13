@@ -9,7 +9,7 @@ echo "開始建置 Docker 映像..."
 
 # 設定變數
 IMAGE_NAME="flexy-dev-sandbox"
-DOCKERFILE_PATH="../Dockerfile"
+DOCKERFILE_PATH="./Dockerfile"
 
 # 檢查 Dockerfile 是否存在
 if [ ! -f "$DOCKERFILE_PATH" ]; then

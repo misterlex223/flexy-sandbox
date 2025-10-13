@@ -16,7 +16,6 @@
 - `claude-config/` - Claude Code 設定檔案目錄
 - `scripts/` - 工具腳本目錄
   - `build-docker.sh` - Docker 映像建置腳本
-- `dev-environment-docker/` - (空目錄，可用於特定用途)
 
 ## 建置映像
 
@@ -132,8 +131,47 @@ claude mcp remove server_name
 預設 MCP 設定包含以下伺服器：
 - GitHub CLI MCP 伺服器
 - Docker MCP 伺服器
+- kai-notify MCP 伺服器
 
 您可以根據需要修改 `/home/flexy/.mcp.json` 檔案來添加更多 MCP 伺服器。
+
+### kai-notify 配置
+
+kai-notify 是一個多頻道通知系統，支持 Slack 和 LINE。要使用它，您需要創建一個 `.kai-notify.json` 配置文件：
+
+```json
+{
+  "channels": {
+    "slack": {
+      "enabled": true,
+      "botToken": "xoxb-your-token",
+      "webhookUrl": "https://hooks.slack.com/services/your/webhook",
+      "defaultChannel": "#general"
+    },
+    "line": {
+      "enabled": true,
+      "channelAccessToken": "your-channel-access-token",
+      "channelSecret": "your-channel-secret",
+      "defaultUserId": "user-id-to-send-to"
+    }
+  }
+}
+```
+
+配置文件可以放在以下位置之一：
+1. `.kai-notify.json` 在當前工作目錄中
+2. `~/.kai/notify.json` 在使用者的家目錄中
+3. `config/config.json` 在專案目錄中（後備選項）
+
+要發送通知，您可以使用 Claude Code 的 sendNotification 工具：
+
+```bash
+# 發送通知到所有啟用的頻道
+claude "使用 sendNotification 工具發送'任務完成'通知"
+
+# 或者直接使用 kai-notify CLI
+kai-notify --cli notify --message "Hello World" --title "Notification"
+```
 
 ## 自訂映像
 
