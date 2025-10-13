@@ -97,8 +97,8 @@ ENV ANTHROPIC_SMALL_FAST_MODEL=
 
 # 設定 CoSpec AI 環境變數
 ENV MARKDOWN_DIR=/home/flexy/markdown
-ENV COSPEC_PORT=8080
-ENV COSPEC_API_PORT=8081
+ENV COSPEC_PORT=8280
+ENV COSPEC_API_PORT=8281
 
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
@@ -109,5 +109,5 @@ CMD ["/bin/bash"]
 
 # Expose the default ttyd port and CoSpec AI ports
 EXPOSE 7681
-EXPOSE 8080
-EXPOSE 8081
+EXPOSE 8280
+EXPOSE 8281

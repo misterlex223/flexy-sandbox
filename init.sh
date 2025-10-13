@@ -66,8 +66,8 @@ echo "========================================"
 echo "  啟動 CoSpec AI Markdown Editor"
 echo "========================================"
 echo "Markdown Editor 將在以下位置啟動："
-echo "- 前端: http://localhost:${COSPEC_PORT:-8080}"
-echo "- API:  http://localhost:${COSPEC_API_PORT:-8081}"
+echo "- 前端: http://localhost:${COSPEC_PORT:-8280}"
+echo "- API:  http://localhost:${COSPEC_API_PORT:-8281}"
 echo "- Markdown 目錄: ${MARKDOWN_DIR:-/home/flexy/markdown}"
 echo ""
 
@@ -76,13 +76,13 @@ mkdir -p ${MARKDOWN_DIR:-/home/flexy/markdown}
 
 # 在後台啟動 CoSpec AI 服務器
 cd /cospec-ai/server
-PORT=${COSPEC_API_PORT:-8081} MARKDOWN_DIR=${MARKDOWN_DIR:-/home/flexy/markdown} node index.js > /home/flexy/cospec-api.log 2>&1 &
+PORT=${COSPEC_API_PORT:-8281} MARKDOWN_DIR=${MARKDOWN_DIR:-/home/flexy/markdown} node index.js > /home/flexy/cospec-api.log 2>&1 &
 COSPEC_API_PID=$!
 echo "CoSpec API 已啟動 (PID: $COSPEC_API_PID)"
 
 # 在後台啟動 CoSpec AI 前端
 cd /cospec-ai/app-react
-npx serve -s dist -l ${COSPEC_PORT:-8080} > /home/flexy/cospec-frontend.log 2>&1 &
+npx serve -s dist -l ${COSPEC_PORT:-8280} > /home/flexy/cospec-frontend.log 2>&1 &
 COSPEC_FRONTEND_PID=$!
 echo "CoSpec Frontend 已啟動 (PID: $COSPEC_FRONTEND_PID)"
 echo ""

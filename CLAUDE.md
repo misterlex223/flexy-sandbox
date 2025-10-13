@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Claude Code**: AI 輔助開發工具
 - **ttyd + tmux**: 終端分享和持久化會話
 - **kai-notify**: LINE 通知整合 (npm package)
-- **CoSpec AI**: 整合的 Markdown 編輯器 (port 8080/8081)
+- **CoSpec AI**: 整合的 Markdown 編輯器 (port 8280/8281)
 
 ### 使用者介面
 所有輸出應使用繁體中文。
@@ -57,8 +57,8 @@ flexy-sandbox/
 - `ANTHROPIC_MODEL`: Claude 主要模型名稱
 - `ANTHROPIC_SMALL_FAST_MODEL`: Claude 快速模型名稱
 - `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: `/home/flexy/markdown`)
-- `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 8080)
-- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 8081)
+- `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 8280)
+- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 8281)
 
 #### init.sh (init.sh:1-65)
 容器啟動腳本，執行以下任務：
@@ -118,8 +118,8 @@ docker run -it --rm \
 # 啟動 WebTTY 模式，支援多客戶端共享同一 tmux 會話，並啟用 Markdown 編輯器
 docker run -d --rm \
   -p 7681:7681 \
-  -p 8080:8080 \
-  -p 8081:8081 \
+  -p 8280:8280 \
+  -p 8281:8281 \
   -e ENABLE_WEBTTY=true \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
   -v $(pwd):/home/flexy/projects \
@@ -129,7 +129,7 @@ docker run -d --rm \
 
 # 在瀏覽器中開啟:
 # - http://localhost:7681 - Web Terminal (ttyd + tmux)
-# - http://localhost:8080 - CoSpec AI Markdown Editor
+# - http://localhost:8280 - CoSpec AI Markdown Editor
 # 所有客戶端將共享同一個 tmux 會話，適合協作開發
 ```
 
@@ -247,8 +247,8 @@ exec ttyd -p 7681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
 
 ### 網路服務
 - Port 7681: ttyd 網頁終端（WebTTY 模式）
-- Port 8080: CoSpec AI Markdown Editor 前端
-- Port 8081: CoSpec AI API 服務
+- Port 8280: CoSpec AI Markdown Editor 前端
+- Port 8281: CoSpec AI API 服務
 - 需要使用 `-p` 參數映射才能從主機存取
 
 ## Git 工作流程
@@ -317,22 +317,22 @@ CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即
 
 啟動容器後，可通過以下 URL 訪問：
 
-- **前端界面**: `http://localhost:8080`
-- **API 服務**: `http://localhost:8081`
+- **前端界面**: `http://localhost:8280`
+- **API 服務**: `http://localhost:8281`
 
 ### 環境變數配置
 
 - `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: `/home/flexy/markdown`）
-- `COSPEC_PORT`: 前端服務端口（預設: 8080）
-- `COSPEC_API_PORT`: API 服務端口（預設: 8081）
+- `COSPEC_PORT`: 前端服務端口（預設: 8280）
+- `COSPEC_API_PORT`: API 服務端口（預設: 8281）
 
 ### 自定義 Markdown 目錄
 
 ```bash
 docker run -d --rm \
   -p 7681:7681 \
-  -p 8080:8080 \
-  -p 8081:8081 \
+  -p 8280:8280 \
+  -p 8281:8281 \
   -e ENABLE_WEBTTY=true \
   -e MARKDOWN_DIR=/home/flexy/my-docs \
   -v $(pwd)/my-docs:/home/flexy/my-docs \
@@ -359,7 +359,7 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 
 當 Flexy 容器被 Kai 管理時：
 - ttyd 終端可通過 Kai 代理在 `/flexy/:id/shell` 訪問
-- CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問（需要 Kai 配置 8080 端口代理）
+- CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問（需要 Kai 配置 8280 端口代理）
 
 ### 源碼位置
 
