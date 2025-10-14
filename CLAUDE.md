@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Claude Code**: AI 輔助開發工具
 - **ttyd + tmux**: 終端分享和持久化會話
 - **kai-notify**: LINE 通知整合 (npm package)
-- **CoSpec AI**: 整合的 Markdown 編輯器 (port 8280/8281)
+- **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280/9281)
 
 ### 使用者介面
 所有輸出應使用繁體中文。
@@ -117,9 +117,9 @@ docker run -it --rm \
 ```bash
 # 啟動 WebTTY 模式，支援多客戶端共享同一 tmux 會話，並啟用 Markdown 編輯器
 docker run -d --rm \
-  -p 7681:7681 \
-  -p 8280:8280 \
-  -p 8281:8281 \
+  -p 9681:9681 \
+  -p 9280:9280 \
+  -p 9281:9281 \
   -e ENABLE_WEBTTY=true \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
   -v $(pwd):/home/flexy/projects \
@@ -128,7 +128,7 @@ docker run -d --rm \
   flexy-dev-sandbox
 
 # 在瀏覽器中開啟:
-# - http://localhost:7681 - Web Terminal (ttyd + tmux)
+# - http://localhost:9681 - Web Terminal (ttyd + tmux)
 # - http://localhost:8280 - CoSpec AI Markdown Editor
 # 所有客戶端將共享同一個 tmux 會話，適合協作開發
 ```
@@ -219,13 +219,13 @@ WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 
 
 ```bash
 # 加入認證
-exec ttyd -p 7681 -W -c username:password tmux new -A -s shared_session
+exec ttyd -p 9681 -W -c username:password tmux new -A -s shared_session
 
 # 唯讀模式
-exec ttyd -p 7681 -W -R tmux attach -t shared_session
+exec ttyd -p 9681 -W -R tmux attach -t shared_session
 
 # 自訂標題
-exec ttyd -p 7681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
+exec ttyd -p 9681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
 ```
 
 ## 技術細節
@@ -246,9 +246,9 @@ exec ttyd -p 7681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
 - 具有 sudo 權限（但預設不使用）
 
 ### 網路服務
-- Port 7681: ttyd 網頁終端（WebTTY 模式）
-- Port 8280: CoSpec AI Markdown Editor 前端
-- Port 8281: CoSpec AI API 服務
+- Port 9681: ttyd 網頁終端（WebTTY 模式）
+- Port 9280: CoSpec AI Markdown Editor 前端
+- Port 9281: CoSpec AI API 服務
 - 需要使用 `-p` 參數映射才能從主機存取
 
 ## Git 工作流程
@@ -317,22 +317,22 @@ CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即
 
 啟動容器後，可通過以下 URL 訪問：
 
-- **前端界面**: `http://localhost:8280`
-- **API 服務**: `http://localhost:8281`
+- **前端界面**: `http://localhost:9280`
+- **API 服務**: `http://localhost:9281`
 
 ### 環境變數配置
 
 - `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: `/home/flexy/markdown`）
-- `COSPEC_PORT`: 前端服務端口（預設: 8280）
-- `COSPEC_API_PORT`: API 服務端口（預設: 8281）
+- `COSPEC_PORT`: 前端服務端口（預設: 9280）
+- `COSPEC_API_PORT`: API 服務端口（預設: 9281）
 
 ### 自定義 Markdown 目錄
 
 ```bash
 docker run -d --rm \
-  -p 7681:7681 \
-  -p 8280:8280 \
-  -p 8281:8281 \
+  -p 9681:9681 \
+  -p 9280:9280 \
+  -p 9281:9281 \
   -e ENABLE_WEBTTY=true \
   -e MARKDOWN_DIR=/home/flexy/my-docs \
   -v $(pwd)/my-docs:/home/flexy/my-docs \
@@ -359,7 +359,38 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 
 當 Flexy 容器被 Kai 管理時：
 - ttyd 終端可通過 Kai 代理在 `/flexy/:id/shell` 訪問
-- CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問（需要 Kai 配置 8280 端口代理）
+- CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問
+
+#### Kai 反向代理配置
+
+Kai 後端實現了完整的反向代理支援，路由優先級如下：
+
+1. **Shell 路由**: `/flexy/:id/shell/*` → 容器 port 9681
+2. **CoSpec AI API 路由**: `/flexy/:id/docs/api/*` → 容器 port 9281
+3. **CoSpec AI 前端路由**: `/flexy/:id/docs/*` → 容器 port 9280
+
+**重要**：API 路由必須在前端路由之前匹配，以確保 `/flexy/:id/docs/api/files` 被正確路由到 API 服務器（port 9281）而不是前端服務器（port 9280）。
+
+#### CoSpec AI 反向代理適配
+
+為了在 Kai 反向代理後正常運作，CoSpec AI 已進行以下配置：
+
+1. **相對資源路徑** (`cospec-ai/app-react/vite.config.ts`):
+   ```typescript
+   base: './' // 使用相對路徑以支援反向代理
+   ```
+
+2. **相對 API 路徑** (`cospec-ai/app-react/src/services/api.ts`):
+   ```typescript
+   baseURL: './api' // 使用相對路徑以支援反向代理
+   ```
+
+3. **Hash 路由** (`cospec-ai/app-react/src/App.tsx`):
+   ```typescript
+   import { HashRouter as Router } from 'react-router-dom'
+   ```
+
+這些配置確保 CoSpec AI 可以在任意反向代理路徑下正常工作，無需額外配置。
 
 ### 源碼位置
 
@@ -367,3 +398,32 @@ CoSpec AI 是作為 git submodule 整合的：
 - GitHub: https://github.com/misterlex223/cospec-ai
 - 本地路徑: `cospec-ai/`（submodule）
 - 容器內路徑: `/cospec-ai/`
+
+### 反向代理故障排除
+
+如果 CoSpec AI 在 Kai 代理後無法正常工作：
+
+1. **檢查容器內的 CoSpec AI 版本**：
+   ```bash
+   docker exec <container-id> grep -A 2 "baseURL" /cospec-ai/app-react/src/services/api.ts
+   ```
+   應該看到 `baseURL: './api'`
+
+2. **檢查編譯後的資源**：
+   ```bash
+   docker exec <container-id> cat /cospec-ai/app-react/dist/index.html | grep "src="
+   ```
+   應該看到相對路徑如 `./assets/index-*.js`
+
+3. **重新建置 Flexy 映像**：
+   如果發現配置不正確，需要使用 `--no-cache` 重新建置：
+   ```bash
+   docker build --no-cache -t flexy-dev-sandbox:latest .
+   ```
+
+4. **驗證反向代理路由**：
+   測試 API 是否正確路由：
+   ```bash
+   curl http://localhost:9900/flexy/<container-id>/docs/api/files
+   ```
+   應該返回 JSON 格式的文件列表，而不是 HTML。

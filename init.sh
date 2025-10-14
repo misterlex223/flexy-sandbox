@@ -66,9 +66,9 @@ echo "========================================"
 echo "  啟動 CoSpec AI Markdown Editor"
 echo "========================================"
 echo "Markdown Editor 將在以下位置啟動："
-echo "- 前端: http://localhost:${COSPEC_PORT:-8280}"
-echo "- API:  http://localhost:${COSPEC_API_PORT:-8281}"
-echo "- Markdown 目錄: ${MARKDOWN_DIR:-/home/flexy/markdown}"
+echo "- 前端: http://localhost:${COSPEC_PORT:-9280}"
+echo "- API:  http://localhost:${COSPEC_API_PORT:-9281}"
+echo "- Markdown 目錄: ${MARKDOWN_DIR:-./markdown}"
 echo ""
 
 # 確保 markdown 目錄存在
@@ -76,13 +76,13 @@ mkdir -p ${MARKDOWN_DIR:-/home/flexy/markdown}
 
 # 在後台啟動 CoSpec AI 服務器
 cd /cospec-ai/server
-PORT=${COSPEC_API_PORT:-8281} MARKDOWN_DIR=${MARKDOWN_DIR:-/home/flexy/markdown} node index.js > /home/flexy/cospec-api.log 2>&1 &
+PORT=${COSPEC_API_PORT:-9281} MARKDOWN_DIR=${MARKDOWN_DIR:-/home/flexy/markdown} node index.js > /home/flexy/cospec-api.log 2>&1 &
 COSPEC_API_PID=$!
 echo "CoSpec API 已啟動 (PID: $COSPEC_API_PID)"
 
 # 在後台啟動 CoSpec AI 前端
 cd /cospec-ai/app-react
-npx serve -s dist -l ${COSPEC_PORT:-8280} > /home/flexy/cospec-frontend.log 2>&1 &
+npx serve -s dist -l ${COSPEC_PORT:-9280} > /home/flexy/cospec-frontend.log 2>&1 &
 COSPEC_FRONTEND_PID=$!
 echo "CoSpec Frontend 已啟動 (PID: $COSPEC_FRONTEND_PID)"
 echo ""
@@ -93,17 +93,21 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "========================================"
   echo "  啟動 WebTTY 模式"
   echo "========================================"
-  echo "WebTTY 將在 http://localhost:7681 啟動"
+  echo "WebTTY 將在 http://localhost:9681 啟動"
   echo "所有客戶端將共享同一個 tmux 會話"
+  echo "預設工作目錄: /home/flexy/workspace"
   echo ""
 
   # 處理停止信號，同時關閉 CoSpec AI 和 ttyd
   trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM
 
+  # 切換到 workspace 目錄
+  cd /home/flexy/workspace
+
   # 使用 ttyd 啟動共享的 tmux 會話
-  # -p 7681: 監聽 7681 埠
+  # -p 9681: 監聽 9681 埠
   # tmux new -A -s shared_session: 建立或附加到名為 shared_session 的會話
-  exec ttyd -p 7681 tmux new -A -s shared_session
+  exec ttyd -p 9681 tmux new -A -s shared_session
 else
   # 預設模式：啟動 bash shell，但保持 CoSpec AI 在後台運行
   trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM

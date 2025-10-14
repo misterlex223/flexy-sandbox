@@ -55,9 +55,9 @@ RUN cd /cospec-ai/server && npm install && \
     cd /cospec-ai/app-react && npm install && npx vite build --mode production && \
     chmod +x /usr/local/bin/cospec-entrypoint.sh
 
-# 建立 markdown 目錄並設置權限
-RUN mkdir -p /home/flexy/markdown && \
-    chown -R flexy:flexy /home/flexy/markdown /cospec-ai
+# 建立 workspace 目錄並設置權限
+RUN mkdir -p /home/flexy/workspace && \
+    chown -R flexy:flexy /home/flexy/workspace /cospec-ai
 
 # 複製啟動腳本和配置腳本
 COPY init.sh /usr/local/bin/init.sh
@@ -96,9 +96,9 @@ ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
 
 # 設定 CoSpec AI 環境變數
-ENV MARKDOWN_DIR=/home/flexy/markdown
-ENV COSPEC_PORT=8280
-ENV COSPEC_API_PORT=8281
+ENV MARKDOWN_DIR=/home/flexy/workspace
+ENV COSPEC_PORT=9280
+ENV COSPEC_API_PORT=9281
 
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
@@ -108,6 +108,6 @@ ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
 
 # Expose the default ttyd port and CoSpec AI ports
-EXPOSE 7681
-EXPOSE 8280
-EXPOSE 8281
+EXPOSE 9681
+EXPOSE 9280
+EXPOSE 9281

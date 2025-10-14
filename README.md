@@ -68,13 +68,13 @@ docker run -it --rm \
 ```bash
 # 啟動 WebTTY 模式
 docker run -d --rm \
-  -p 7681:7681 \
+  -p 9681:9681 \
   -e ENABLE_WEBTTY=true \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
   --name flexy-webtty \
   flexy-dev-sandbox
 
-# 然後在瀏覽器中開啟 http://localhost:7681
+# 然後在瀏覽器中開啟 http://localhost:9681
 ```
 
 **WebTTY 模式特點：**
