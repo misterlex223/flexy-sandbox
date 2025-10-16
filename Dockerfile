@@ -96,7 +96,7 @@ ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
 
 # 設定 CoSpec AI 環境變數
-ENV MARKDOWN_DIR=/home/flexy/workspace
+# MARKDOWN_DIR 預設為容器的當前工作目錄（由 Docker WorkingDir 設定）
 ENV COSPEC_PORT=9280
 ENV COSPEC_API_PORT=9281
 

@@ -61,6 +61,9 @@ echo "- git                # Git 版本控制"
 echo "- gh                 # GitHub CLI"
 echo ""
 
+# 儲存當前工作目錄（用於 CoSpec AI 和 ttyd）
+WORK_DIR=$(pwd)
+
 # 啟動 CoSpec AI Markdown Editor（始終在後台啟動）
 echo "========================================"
 echo "  啟動 CoSpec AI Markdown Editor"
@@ -68,15 +71,15 @@ echo "========================================"
 echo "Markdown Editor 將在以下位置啟動："
 echo "- 前端: http://localhost:${COSPEC_PORT:-9280}"
 echo "- API:  http://localhost:${COSPEC_API_PORT:-9281}"
-echo "- Markdown 目錄: ${MARKDOWN_DIR:-./markdown}"
+echo "- Markdown 目錄: ${MARKDOWN_DIR:-$WORK_DIR}"
 echo ""
 
-# 確保 markdown 目錄存在
-mkdir -p ${MARKDOWN_DIR:-/home/flexy/markdown}
+# 確保 markdown 目錄存在（預設使用當前工作目錄）
+mkdir -p ${MARKDOWN_DIR:-$WORK_DIR}
 
 # 在後台啟動 CoSpec AI 服務器
 cd /cospec-ai/server
-PORT=${COSPEC_API_PORT:-9281} MARKDOWN_DIR=${MARKDOWN_DIR:-/home/flexy/markdown} node index.js > /home/flexy/cospec-api.log 2>&1 &
+PORT=${COSPEC_API_PORT:-9281} MARKDOWN_DIR=${MARKDOWN_DIR:-$WORK_DIR} node index.js > /home/flexy/cospec-api.log 2>&1 &
 COSPEC_API_PID=$!
 echo "CoSpec API 已啟動 (PID: $COSPEC_API_PID)"
 
@@ -95,16 +98,14 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "========================================"
   echo "WebTTY 將在 http://localhost:9681 啟動"
   echo "所有客戶端將共享同一個 tmux 會話"
-  echo "預設工作目錄: /home/flexy/workspace"
+  echo "工作目錄: $(pwd)"
   echo ""
 
   # 處理停止信號，同時關閉 CoSpec AI 和 ttyd
   trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM
 
-  # 切換到 workspace 目錄
-  cd /home/flexy/workspace
-
   # 使用 ttyd 啟動共享的 tmux 會話
+  # 不需要 cd，因為 Docker 的 WorkingDir 已經設定好了
   # -p 9681: 監聽 9681 埠
   # tmux new -A -s shared_session: 建立或附加到名為 shared_session 的會話
   exec ttyd -p 9681 tmux new -A -s shared_session

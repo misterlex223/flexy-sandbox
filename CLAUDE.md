@@ -56,9 +56,9 @@ flexy-sandbox/
 - `ANTHROPIC_BASE_URL`: Claude API 基礎 URL (可選)
 - `ANTHROPIC_MODEL`: Claude 主要模型名稱
 - `ANTHROPIC_SMALL_FAST_MODEL`: Claude 快速模型名稱
-- `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: `/home/flexy/markdown`)
-- `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 8280)
-- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 8281)
+- `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: 當前工作目錄，由 Docker WorkingDir 設定)
+- `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 9280)
+- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 9281)
 
 #### init.sh (init.sh:1-65)
 容器啟動腳本，執行以下任務：
@@ -322,11 +322,15 @@ CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即
 
 ### 環境變數配置
 
-- `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: `/home/flexy/markdown`）
+- `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: 容器的當前工作目錄）
 - `COSPEC_PORT`: 前端服務端口（預設: 9280）
 - `COSPEC_API_PORT`: API 服務端口（預設: 9281）
 
 ### 自定義 Markdown 目錄
+
+**注意**: 在 Kai 管理的 Flexy 容器中，工作目錄會自動設定為 `/base-root/{org}/{workspace}/{project}`，因此 CoSpec AI 會自動使用該項目目錄作為 Markdown 目錄。
+
+如果需要自定義 Markdown 目錄：
 
 ```bash
 docker run -d --rm \
@@ -334,8 +338,8 @@ docker run -d --rm \
   -p 9280:9280 \
   -p 9281:9281 \
   -e ENABLE_WEBTTY=true \
-  -e MARKDOWN_DIR=/home/flexy/my-docs \
-  -v $(pwd)/my-docs:/home/flexy/my-docs \
+  -e MARKDOWN_DIR=/custom/path \
+  -v $(pwd)/my-docs:/custom/path \
   flexy-dev-sandbox
 ```
 
