@@ -90,6 +90,9 @@ COSPEC_FRONTEND_PID=$!
 echo "CoSpec Frontend 已啟動 (PID: $COSPEC_FRONTEND_PID)"
 echo ""
 
+# 回到原始工作目錄
+cd "$WORK_DIR"
+
 # 檢查是否啟用 WebTTY 模式
 # 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + tmux
 if [ "$ENABLE_WEBTTY" = "true" ]; then
