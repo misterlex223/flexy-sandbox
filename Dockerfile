@@ -64,19 +64,27 @@ COPY init.sh /usr/local/bin/init.sh
 COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
 RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh
 
+# Create Qwen configuration directory
+RUN mkdir -p /home/flexy/.qwen && \
+    chown -R flexy:flexy /home/flexy/.qwen
+
 # 切換到 flexy 使用者
 USER flexy
 
-# 建立用戶目錄結構並安裝全局包
+# 建立用戶目錄結構並安裝全局包 (including Qwen support)
 RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm config set prefix '/home/flexy/.local' && \
-    npm install -g @anthropic-ai/claude-code kai-notify
+    npm install -g @anthropic-ai/claude-code kai-notify && \
+    npm install -g @qwen-code/qwen-code@latest
 
 # 複製 Claude Code MCP 配置文件
 COPY claude-config/.mcp.json /home/flexy/.mcp.json
 
 # 配置 MCP 伺服器
 RUN /usr/local/bin/configure-mcp.sh
+
+# 複製 Qwen Code MCP 配置文件
+COPY qwen-config/settings.json /home/flexy/.qwen/settings.json
 
 # 設定環境變數
 ENV HOME=/home/flexy
@@ -94,6 +102,11 @@ ENV ANTHROPIC_AUTH_TOKEN=
 ENV ANTHROPIC_BASE_URL=
 ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
+
+# 設定 Qwen 環境變數（可在執行時覆蓋）
+ENV QWEN_API_KEY=
+ENV QWEN_BASE_URL=https://intl-dashscope.aliyuncs.com/compatible-mode/v1
+ENV QWEN_MODEL=qwen-coder-plus
 
 # 設定 CoSpec AI 環境變數
 # MARKDOWN_DIR 預設為容器的當前工作目錄（由 Docker WorkingDir 設定）
