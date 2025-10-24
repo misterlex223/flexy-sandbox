@@ -2,9 +2,35 @@
 
 # 初始化開發環境腳本
 
+# 設定支援中文的 locale
+export LANG=zh_TW.UTF-8
+export LC_ALL=zh_TW.UTF-8
+
 # 建立常用目錄
 mkdir -p /home/flexy/projects
 mkdir -p /home/flexy/.config
+
+# Initialize Qwen and Claude config directories if they're empty/uninitialized
+# This happens after mount points are established but before services start
+if [ ! "$(ls -A /home/flexy/.qwen 2>/dev/null)" ]; then
+  echo "Initializing Qwen config directory with default settings..."
+  if [ -f /home/flexy/default-qwen-settings.json ]; then
+    cp /home/flexy/default-qwen-settings.json /home/flexy/.qwen/settings.json
+  else
+    echo '{}' > /home/flexy/.qwen/settings.json
+  fi
+fi
+
+if [ ! "$(ls -A /home/flexy/.claude 2>/dev/null)" ]; then
+  echo "Initializing Claude config directory with default settings..."
+  if [ -f /home/flexy/default-mcp.json ]; then
+    cp /home/flexy/default-mcp.json /home/flexy/.claude/.mcp.json
+  fi
+  # Copy CLAUDE.md if it exists
+  if [ -f /home/flexy/CLAUDE.md ]; then
+    cp /home/flexy/CLAUDE.md /home/flexy/.claude/CLAUDE.md
+  fi
+fi
 
 # 設定 Git 初始配置（如果尚未設定）
 if [ ! -f /home/flexy/.gitconfig ]; then
@@ -97,21 +123,26 @@ cd "$WORK_DIR"
 # 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + tmux
 if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "========================================"
-  echo "  啟動 WebTTY 模式"
+  echo "  啟動 WebTTY 模式 (多會話支援)"
   echo "========================================"
   echo "WebTTY 將在 http://localhost:9681 啟動"
-  echo "所有客戶端將共享同一個 tmux 會話"
   echo "工作目錄: $(pwd)"
-  echo ""
 
-  # 處理停止信號，同時關閉 CoSpec AI 和 ttyd
-  trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM
+  # 啟動 AI 會話監控器 (handles session creation and management)
+  echo "啟動 AI 會話監控器..."
+  node /usr/local/bin/ai-session-monitor.js > /home/flexy/ai-monitor.log 2>&1 &
+  AI_MONITOR_PID=$!
+  echo "AI 會話監控器已啟動 (PID: $AI_MONITOR_PID)"
 
-  # 使用 ttyd 啟動共享的 tmux 會話
-  # 不需要 cd，因為 Docker 的 WorkingDir 已經設定好了
-  # -p 9681: 監聽 9681 埠
-  # tmux new -A -s shared_session: 建立或附加到名為 shared_session 的會話
-  exec ttyd -p 9681 tmux new -A -s shared_session
+  # 處理停止信號，同時關閉 CoSpec AI、AI 監控器和 ttyd
+  trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+
+  # Wait briefly for the monitor to initialize the session
+  sleep 2
+
+  # Start ttyd with the tmux session
+  # The JavaScript monitor handles all session management
+  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W tmux new -A -s shared_session
 else
   # 預設模式：啟動 bash shell，但保持 CoSpec AI 在後台運行
   trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM

@@ -357,6 +357,8 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 - **前端**: React + TypeScript + Vite + Vditor
 - **後端**: Node.js + Express + Socket.io
 - **文件監控**: Chokidar (實時文件變更監控)
+- **Context 同步**: 整合 Kai Context API，自動同步 Markdown 文件為記憶
+- **同步元數據**: 儲存於 `.cospec-sync/sync-metadata.json`（不污染原始文件）
 - **部署方式**: 前端使用 `serve` 提供靜態文件，後端運行 Node.js 服務
 
 ### 與 Kai 整合
@@ -431,3 +433,55 @@ CoSpec AI 是作為 git submodule 整合的：
    curl http://localhost:9900/flexy/<container-id>/docs/api/files
    ```
    應該返回 JSON 格式的文件列表，而不是 HTML。
+
+## Context 同步整合
+
+CoSpec AI 與 Kai 的 Context System 整合，可自動將 Markdown 文件同步為記憶體。詳細技術文件請參考 `cospec-ai/CLAUDE.md`。
+
+### 自動同步模式
+
+符合以下模式的文件會自動同步到 Kai Context：
+- `specs/**/*.md` - 規格文件
+- `requirements/**/*.md` - 需求文件
+- `docs/specs/**/*.md` - 規格文件（文件目錄下）
+- `**/*.spec.md` - 以 `.spec.md` 結尾的文件
+- `SPEC.md` - 根目錄規格文件
+- `REQUIREMENTS.md` - 根目錄需求文件
+
+### 同步元數據儲存
+
+**重要原則**：CoSpec AI **絕不修改原始 Markdown 文件**。所有同步元數據儲存在獨立的 `.cospec-sync/sync-metadata.json` 文件中。
+
+**設計理念**：
+1. **不污染原始文件**：同步用途的元數據不寫入原始 Markdown
+2. **關注點分離**：同步狀態儲存在專用隱藏目錄
+3. **防止無限循環**：元數據目錄被文件監控器忽略
+4. **持久化狀態**：容器重啟後同步狀態保留
+
+### 問題排除
+
+**問題：無限同步循環（文件持續重複同步）**
+- **原因**：~~早期版本會修改原始文件的 frontmatter，觸發文件監控器，造成無限循環~~（已修復）
+- **解決方案**：
+  1. 升級到最新版本的 Flexy 映像（2025-01-25 之後）
+  2. 驗證 `cospec-ai/server/index.js` 的 `watchOptions.ignored` 包含 `'**/.cospec-sync/**'`
+  3. 確認 `cospec-ai/server/fileSyncManager.js` 已移除 `updateFrontmatter()` 方法
+
+**問題：同步狀態在容器重啟後遺失**
+- **原因**：`.cospec-sync/` 目錄未被持久化
+- **解決方案**：確保 `MARKDOWN_DIR` 的 volume 掛載包含 `.cospec-sync/` 子目錄
+
+**問題：文件未自動同步**
+- **原因**：文件路徑不符合任何自動同步模式
+- **解決方案**：使用手動同步 API 或在 `fileSyncManager.js` 中添加模式
+
+### 環境變數
+
+- `KAI_PROJECT_ID`: 專案 ID，用於 context 同步整合（可選）
+- `KAI_BACKEND_URL`: Kai 後端 URL，用於 context API（可選，預設：`http://host.docker.internal:9900`）
+
+### 相關文件
+
+完整的 Context 同步技術文件請參考：
+- `cospec-ai/CLAUDE.md` - CoSpec AI 完整文件（包含 Context Sync Integration 章節）
+- Kai 主專案的 `docs/architecture/cospec-context-integration.md` - 整合架構文件

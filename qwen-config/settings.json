@@ -5,6 +5,9 @@
   "showLineNumbers": true,
   "hasSeenIdeIntegrationNudge": true,
   "selectedAuthType": "qwen-oauth",
+  "tools": {
+    "approvalMode": "yolo"
+  },
   "mcpServers": {
     "kai-notify": {
       "command": "npx",

@@ -20,7 +20,11 @@ RUN apt-get update && apt-get install -y \
     sudo \
     ttyd \
     tmux \
+    locales \
     && rm -rf /var/lib/apt/lists/*
+
+# 生成中文 locale 支援
+RUN locale-gen zh_TW.UTF-8 && update-locale LANG=zh_TW.UTF-8
 
 # 建立非 root 使用者
 RUN useradd -ms /bin/bash flexy \
@@ -59,14 +63,16 @@ RUN cd /cospec-ai/server && npm install && \
 RUN mkdir -p /home/flexy/workspace && \
     chown -R flexy:flexy /home/flexy/workspace /cospec-ai
 
-# 複製啟動腳本和配置腳本
+# 複製啟動腳本、監控腳本和配置腳本
 COPY init.sh /usr/local/bin/init.sh
+COPY ai-session-monitor.js /usr/local/bin/ai-session-monitor.js
 COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
 RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh
 
-# Create Qwen configuration directory
+# Create Qwen and Claude configuration directories
 RUN mkdir -p /home/flexy/.qwen && \
-    chown -R flexy:flexy /home/flexy/.qwen
+    mkdir -p /home/flexy/.claude && \
+    chown -R flexy:flexy /home/flexy/.qwen /home/flexy/.claude
 
 # 切換到 flexy 使用者
 USER flexy
@@ -83,8 +89,10 @@ COPY claude-config/.mcp.json /home/flexy/.mcp.json
 # 配置 MCP 伺服器
 RUN /usr/local/bin/configure-mcp.sh
 
-# 複製 Qwen Code MCP 配置文件
-COPY qwen-config/settings.json /home/flexy/.qwen/settings.json
+# 複製 and setup default Qwen and Claude configuration files for initialization
+COPY qwen-config/settings.json /home/flexy/default-qwen-settings.json
+COPY claude-config/.mcp.json /home/flexy/default-mcp.json
+COPY claude-config/CLAUDE.md /home/flexy/CLAUDE.md
 
 # 設定環境變數
 ENV HOME=/home/flexy
@@ -105,13 +113,21 @@ ENV ANTHROPIC_SMALL_FAST_MODEL=
 
 # 設定 Qwen 環境變數（可在執行時覆蓋）
 ENV QWEN_API_KEY=
-ENV QWEN_BASE_URL=https://intl-dashscope.aliyuncs.com/compatible-mode/v1
-ENV QWEN_MODEL=qwen-coder-plus
+ENV QWEN_BASE_URL=
+ENV QWEN_MODEL=
 
 # 設定 CoSpec AI 環境變數
 # MARKDOWN_DIR 預設為容器的當前工作目錄（由 Docker WorkingDir 設定）
 ENV COSPEC_PORT=9280
 ENV COSPEC_API_PORT=9281
+
+# 設定持久化 AI 會話環境變數
+# ENABLE_PERSISTENT_AI_SESSIONS: 啟用多 tmux 會話功能 (預設: true)
+# AI_SESSION_MODE: AI CLI 啟動模式 - interactive (預先啟動) 或 on-demand (按需啟動)
+# TASK_COMPLETION_TIMEOUT: 任務完成檢測超時時間 (毫秒)
+ENV ENABLE_PERSISTENT_AI_SESSIONS=true
+ENV AI_SESSION_MODE=interactive
+ENV TASK_COMPLETION_TIMEOUT=120000
 
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
@@ -120,7 +136,10 @@ SHELL ["/bin/bash", "-c"]
 ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
 
-# Expose the default ttyd port and CoSpec AI ports
+# Expose ttyd port and CoSpec AI ports
+  # Shared ttyd (tmux with multiple windows: user, claude, qwen)
 EXPOSE 9681
+  # CoSpec AI frontend
 EXPOSE 9280
+  # CoSpec AI API
 EXPOSE 9281
