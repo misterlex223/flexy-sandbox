@@ -45,7 +45,13 @@ async function initializeSession() {
         }
     } catch (error) {
         console.error('Error initializing session:', error);
+    } finally {
+        // Always ensure the history limit is set for the session using environment variable
+        const tmuxHistoryLimit = process.env.TMUX_HISTORY_LIMIT || '10000';
+        await execAsync(`tmux set -g history-limit ${tmuxHistoryLimit}`);
+        await execAsync(`tmux set -g mouse on `);
     }
+
 }
 
 function checkSessionExists(sessionName) {

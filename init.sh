@@ -142,7 +142,7 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
 
   # Start ttyd with the tmux session
   # The JavaScript monitor handles all session management
-  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W tmux new -A -s shared_session
+  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 tmux new -A -s shared_session
 else
   # 預設模式：啟動 bash shell，但保持 CoSpec AI 在後台運行
   trap "kill $COSPEC_API_PID $COSPEC_FRONTEND_PID; exit" SIGINT SIGTERM
