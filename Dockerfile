@@ -26,9 +26,15 @@ RUN apt-get update && apt-get install -y \
 # 生成中文 locale 支援
 RUN locale-gen zh_TW.UTF-8 && update-locale LANG=zh_TW.UTF-8
 
-# 建立非 root 使用者
+# 建立非 root 使用者並加入 sudo 群組
 RUN useradd -ms /bin/bash flexy \
-    && chown -R flexy:flexy /home/flexy
+    && usermod -aG sudo flexy \
+    && chown -R flexy:flexy /home/flexy \
+    && echo 'flexy:dockerSandbox' | chpasswd \
+    && echo 'Defaults exempt_group=sudo' >> /etc/sudoers \
+    && mkdir -p /etc/sudoers.d \
+    && echo 'flexy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip3, /usr/bin/pip, /usr/local/bin/npx, /usr/local/bin/npm' > /etc/sudoers.d/flexy-nopasswd \
+    && chmod 440 /etc/sudoers.d/flexy-nopasswd
 
 # 安裝 Node.js (使用 NodeSource 倉庫以獲得最新版本)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - \
@@ -135,6 +141,8 @@ ENV TMUX_HISTORY_LIMIT=10000
 
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
+
+
 
 # 設定入口點
 ENTRYPOINT ["/usr/local/bin/init.sh"]

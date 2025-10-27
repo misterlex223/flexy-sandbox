@@ -86,6 +86,13 @@ echo "- pip3               # Python Package Installer"
 echo "- git                # Git 版本控制"
 echo "- gh                 # GitHub CLI"
 echo ""
+echo "安裝自訂應用程式："
+echo "- 要安裝系統套件，使用：sudo apt install <package-name>"
+echo "- 要安裝 Python 套件，使用：pip3 install <package-name> 或 pip3 install --user <package-name>"
+echo "- 要安裝 Node.js 套件，使用：npm install -g <package-name> 或 npm install <package-name>"
+echo ""
+echo "注意：預設 flexy 使用者密碼為 'dockerSandbox'，可以在需要時使用 sudo 執行管理員權限命令"
+echo ""
 
 # 儲存當前工作目錄（用於 CoSpec AI 和 ttyd）
 WORK_DIR=$(pwd)
