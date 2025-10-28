@@ -21,10 +21,20 @@ RUN apt-get update && apt-get install -y \
     ttyd \
     tmux \
     locales \
+    openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 # 生成中文 locale 支援
 RUN locale-gen zh_TW.UTF-8 && update-locale LANG=zh_TW.UTF-8
+
+# 配置 SSH 伺服器
+RUN mkdir -p /var/run/sshd && \
+    echo 'PermitRootLogin no' >> /etc/ssh/sshd_config && \
+    echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config && \
+    echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config && \
+    echo 'UsePAM yes' >> /etc/ssh/sshd_config && \
+    echo 'X11Forwarding no' >> /etc/ssh/sshd_config && \
+    echo 'AllowTcpForwarding yes' >> /etc/ssh/sshd_config
 
 # 建立非 root 使用者並加入 sudo 群組
 RUN useradd -ms /bin/bash flexy \
@@ -54,20 +64,8 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | s
     && sudo apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
-# 複製 cospec-ai 應用程式
-COPY cospec-ai/server /cospec-ai/server
-COPY cospec-ai/app-react /cospec-ai/app-react
-COPY cospec-ai/docker-entrypoint.sh /usr/local/bin/cospec-entrypoint.sh
-
-# 安裝 cospec-ai 依賴並構建前端 (as root)
-# Build without TypeScript type checking since cospec-ai is an independent project
-RUN cd /cospec-ai/server && npm install && \
-    cd /cospec-ai/app-react && npm install && npx vite build --mode production && \
-    chmod +x /usr/local/bin/cospec-entrypoint.sh
-
-# 建立 workspace 目錄並設置權限
-RUN mkdir -p /home/flexy/workspace && \
-    chown -R flexy:flexy /home/flexy/workspace /cospec-ai
+# 建立 workspace 目錄
+RUN mkdir -p /home/flexy/workspace
 
 # 複製啟動腳本、監控腳本和配置腳本
 COPY init.sh /usr/local/bin/init.sh
@@ -83,11 +81,13 @@ RUN mkdir -p /home/flexy/.qwen && \
 # 切換到 flexy 使用者
 USER flexy
 
-# 建立用戶目錄結構並安裝全局包 (including Qwen support)
+# 建立用戶目錄結構並安裝全局包 (including Qwen, Gemini and cospec-ai support)
 RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm config set prefix '/home/flexy/.local' && \
-    npm install -g @anthropic-ai/claude-code kai-notify && \
-    npm install -g @qwen-code/qwen-code@latest
+    npm install -g @qwen-code/qwen-code@latest && \
+    npm install -g @anthropic-ai/claude-code && \
+    npm install -g @google/gemini-cli && \
+    npm install -g cospec-ai kai-notify
 
 # 複製 Claude Code MCP 配置文件
 COPY claude-config/.mcp.json /home/flexy/.mcp.json
@@ -111,21 +111,25 @@ ENV NODE_PATH=/home/flexy/.local/lib/node_modules
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# 設定 Qwen 環境變數（可在執行時覆蓋）
+ENV QWEN_API_KEY=
+ENV QWEN_BASE_URL=
+ENV QWEN_MODEL=
+
 # 設定 Claude Code 環境變數（可在執行時覆蓋）
 ENV ANTHROPIC_AUTH_TOKEN=
 ENV ANTHROPIC_BASE_URL=
 ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
 
-# 設定 Qwen 環境變數（可在執行時覆蓋）
-ENV QWEN_API_KEY=
-ENV QWEN_BASE_URL=
-ENV QWEN_MODEL=
+# 設定 Gemini 環境變數（可在執行時覆蓋）
+ENV GEMINI_API_KEY=
+ENV GEMINI_BASE_URL=
+ENV GEMINI_MODEL=
 
 # 設定 CoSpec AI 環境變數
-# MARKDOWN_DIR 預設為容器的當前工作目錄（由 Docker WorkingDir 設定）
 ENV COSPEC_PORT=9280
-ENV COSPEC_API_PORT=9281
+ENV MARKDOWN_DIR=/home/flexy/workspace
 
 # 設定持久化 AI 會話環境變數
 # ENABLE_PERSISTENT_AI_SESSIONS: 啟用多 tmux 會話功能 (預設: true)
@@ -142,8 +146,6 @@ ENV TMUX_HISTORY_LIMIT=10000
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]
 
-
-
 # 設定入口點
 ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
@@ -151,7 +153,7 @@ CMD ["/bin/bash"]
 # Expose ttyd port and CoSpec AI ports
   # Shared ttyd (tmux with multiple windows: user, claude, qwen)
 EXPOSE 9681
-  # CoSpec AI frontend
+  # CoSpec AI unified server
 EXPOSE 9280
-  # CoSpec AI API
-EXPOSE 9281
+  # SSH server
+EXPOSE 22

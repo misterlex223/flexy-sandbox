@@ -21,22 +21,29 @@ async function initializeSession() {
         if (!sessionExists) {
             console.log(`Creating tmux session: ${SESSION_NAME}`);
             
-            // Create the main session with user window (window 0)
-            await execAsync(`tmux new -d -s ${SESSION_NAME} -n user_session`);
-            
             if (ENABLE_PERSISTENT_AI_SESSIONS === 'true') {
+                // Create the main session with Qwen window (window 0)
+                await execAsync(`tmux new -d -s ${SESSION_NAME} -n qwen_session`);
+                
                 // Create Claude session window (window 1)
                 await execAsync(`tmux new-window -t ${SESSION_NAME}:1 -n claude_session`);
                 
-                // Create Qwen session window (window 2)
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n qwen_session`);
+                // Create Gemini session window (window 2)
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
+                
+                // Create User session window (window 3)
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
                 
                 // If in interactive mode, start AI CLIs
                 if (AI_SESSION_MODE === 'interactive') {
                     console.log('Starting AI CLI tools in interactive mode...');
+                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
                     await execAsync(`tmux send-keys -t ${SESSION_NAME}:1 'claude' Enter`);
-                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'qwen' Enter`);
+                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
                 }
+            } else {
+                // Create the main session with user window (window 0) if persistent AI sessions are disabled
+                await execAsync(`tmux new -d -s ${SESSION_NAME} -n user_session`);
             }
             
             console.log(`Session ${SESSION_NAME} initialized with all windows`);
@@ -119,8 +126,9 @@ const lastRestartTime = {};
 
 async function restartAIInWindow(windowIndex, aiCmd) {
     const windowNames = {
+        0: 'qwen_session',
         1: 'claude_session',
-        2: 'qwen_session'
+        2: 'gemini_session'
     };
     
     const windowName = windowNames[windowIndex];
@@ -160,15 +168,18 @@ async function ensureWindowsExist() {
     }
     
     try {
-        // Check if user window exists (window 0)
-        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
-        if (!userRunning) {
-            console.log('User window missing, creating...');
+        // Check if Qwen window exists (window 0)
+        const qwenRunning = await checkWindowRunning(SESSION_NAME, 0);
+        if (!qwenRunning) {
+            console.log('Qwen window missing, creating...');
             await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n qwen_session`);
+            if (AI_SESSION_MODE === 'interactive') {
+                await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
+            }
         }
 
-        // Check if Claude window exists
+        // Check if Claude window exists (window 1)
         const claudeRunning = await checkWindowRunning(SESSION_NAME, 1);
         if (!claudeRunning) {
             console.log('Claude window missing, creating...');
@@ -179,15 +190,23 @@ async function ensureWindowsExist() {
             }
         }
 
-        // Check if Qwen window exists
-        const qwenRunning = await checkWindowRunning(SESSION_NAME, 2);
-        if (!qwenRunning) {
-            console.log('Qwen window missing, creating...');
+        // Check if Gemini window exists (window 2)
+        const geminiRunning = await checkWindowRunning(SESSION_NAME, 2);
+        if (!geminiRunning) {
+            console.log('Gemini window missing, creating...');
             await execAsync(`tmux kill-window -t ${SESSION_NAME}:2 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n qwen_session`);
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
             if (AI_SESSION_MODE === 'interactive') {
-                await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'qwen' Enter`);
+                await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
             }
+        }
+        
+        // Check if User window exists (window 3)
+        const userRunning = await checkWindowRunning(SESSION_NAME, 3);
+        if (!userRunning) {
+            console.log('User window missing, creating...');
+            await execAsync(`tmux kill-window -t ${SESSION_NAME}:3 2>/dev/null || true`); // Clean up dead window if any
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
         }
     } catch (error) {
         console.error('Error ensuring windows exist:', error);
@@ -211,14 +230,26 @@ async function monitorSessions() {
 
         await ensureWindowsExist();
 
-        // Check user session (window 0) - just ensure window exists, no process to monitor
-        console.log('Checking user session...');
-        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
-        console.log(`User window running: ${userRunning}`);
-        if (!userRunning) {
-            console.log('User window is dead, restarting...');
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
-            console.log('User window restarted');
+        // Check Qwen session (window 0)
+        console.log('Checking Qwen session...');
+        const qwenRunning = await checkWindowRunning(SESSION_NAME, 0);
+        console.log(`Qwen window running: ${qwenRunning}`);
+        if (qwenRunning) {
+            const qwenProcessRunning = await checkAIProcessRunning(SESSION_NAME, 0, 'qwen');
+            console.log(`Qwen process running: ${qwenProcessRunning}`);
+            if (!qwenProcessRunning && AI_SESSION_MODE === 'interactive') {
+                console.log('Qwen process not running, restarting...');
+                await restartAIInWindow(0, 'qwen');
+            } else {
+                console.log('Qwen process is running as expected');
+            }
+        } else if (AI_SESSION_MODE === 'interactive') {
+            // Window is dead, try to restart it
+            console.log('Qwen window is dead, restarting...');
+            await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`); // Clean up dead window if any
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n qwen_session`);
+            await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
+            console.log('Qwen window restarted');
         }
 
         // Check Claude session (window 1)
@@ -243,27 +274,38 @@ async function monitorSessions() {
             console.log('Claude window restarted');
         }
 
-        // Check Qwen session (window 2)
-        console.log('Checking Qwen session...');
-        const qwenRunning = await checkWindowRunning(SESSION_NAME, 2);
-        console.log(`Qwen window running: ${qwenRunning}`);
-        if (qwenRunning) {
-            const qwenProcessRunning = await checkAIProcessRunning(SESSION_NAME, 2, 'qwen');
-            console.log(`Qwen process running: ${qwenProcessRunning}`);
-            if (!qwenProcessRunning && AI_SESSION_MODE === 'interactive') {
-                console.log('Qwen process not running, restarting...');
-                await restartAIInWindow(2, 'qwen');
+        // Check Gemini session (window 2)
+        console.log('Checking Gemini session...');
+        const geminiRunning = await checkWindowRunning(SESSION_NAME, 2);
+        console.log(`Gemini window running: ${geminiRunning}`);
+        if (geminiRunning) {
+            const geminiProcessRunning = await checkAIProcessRunning(SESSION_NAME, 2, 'gemini');
+            console.log(`Gemini process running: ${geminiProcessRunning}`);
+            if (!geminiProcessRunning && AI_SESSION_MODE === 'interactive') {
+                console.log('Gemini process not running, restarting...');
+                await restartAIInWindow(2, 'gemini');
             } else {
-                console.log('Qwen process is running as expected');
+                console.log('Gemini process is running as expected');
             }
         } else if (AI_SESSION_MODE === 'interactive') {
             // Window is dead, try to restart it
-            console.log('Qwen window is dead, restarting...');
+            console.log('Gemini window is dead, restarting...');
             await execAsync(`tmux kill-window -t ${SESSION_NAME}:2 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n qwen_session`);
-            await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'qwen' Enter`);
-            console.log('Qwen window restarted');
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
+            await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
+            console.log('Gemini window restarted');
         }
+
+        // Check user session (window 3) - just ensure window exists, no process to monitor
+        console.log('Checking user session...');
+        const userRunning = await checkWindowRunning(SESSION_NAME, 3);
+        console.log(`User window running: ${userRunning}`);
+        if (!userRunning) {
+            console.log('User window is dead, restarting...');
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
+            console.log('User window restarted');
+        }
+        
         console.log('=== Completed monitorSessions cycle ===');
     } catch (error) {
         console.error('Error in monitorSessions:', error);
