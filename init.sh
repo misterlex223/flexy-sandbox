@@ -121,9 +121,8 @@ echo ""
 echo "注意：預設 flexy 使用者密碼為 'dockerSandbox'，可以在需要時使用 sudo 執行管理員權限命令"
 echo ""
 
-# 儲存當前工作目錄（用於 CoSpec AI 和 ttyd）
-WORK_DIR=$(pwd)
-DEFAULT_WORKSPACE_DIR=/home/flexy/workspace
+# Use the working directory environment variable
+WORKING_DIRECTORY=${WORKING_DIRECTORY:-/home/flexy/workspace}
 
 # 啟動 SSH 服務
 echo "========================================"
@@ -139,14 +138,14 @@ echo "  啟動 CoSpec AI Markdown Editor"
 echo "========================================"
 echo "Markdown Editor 將在以下位置啟動："
 echo "- 服務: http://localhost:${COSPEC_PORT:-9280}"
-echo "- Markdown 目錄: ${MARKDOWN_DIR:-$DEFAULT_WORKSPACE_DIR}"
+echo "- Markdown 目錄: ${MARKDOWN_DIR:-$WORKING_DIRECTORY}"
 echo ""
 
-# 確保 markdown 目錄存在（預設使用當前工作目錄）
-mkdir -p ${MARKDOWN_DIR:-$DEFAULT_WORKSPACE_DIR}
+# 確保 markdown 目錄存在（預設使用 working directory）
+mkdir -p ${MARKDOWN_DIR:-$WORKING_DIRECTORY}
 
 # 在後台啟動 CoSpec AI unified server
-npx cospec-ai --port ${COSPEC_PORT:-9280} --markdown-dir ${MARKDOWN_DIR:-$DEFAULT_WORKSPACE_DIR} > /home/flexy/cospec.log 2>&1 &
+npx cospec-ai --port ${COSPEC_PORT:-9280} --markdown-dir ${MARKDOWN_DIR:-$WORKING_DIRECTORY} > /home/flexy/cospec.log 2>&1 &
 COSPEC_PID=$!
 echo "CoSpec AI 已啟動 (PID: $COSPEC_PID)"
 echo ""
@@ -158,7 +157,13 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "  啟動 WebTTY 模式 (多會話支援)"
   echo "========================================"
   echo "WebTTY 將在 http://localhost:9681 啟動"
-  echo "工作目錄: $(pwd)"
+  echo "工作目錄: $WORKING_DIRECTORY"
+
+  # 切換到工作目錄
+  cd "$WORKING_DIRECTORY" || {
+    echo "警告: 無法切換到工作目錄 $WORKING_DIRECTORY，使用當前目錄"
+    cd /home/flexy/workspace
+  }
 
   # 啟動 AI 會話監控器 (handles session creation and management)
   echo "啟動 AI 會話監控器..."
@@ -181,7 +186,11 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   # The JavaScript monitor handles all session management
   LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 tmux new -A -s shared_session
 else
-  # 預設模式：啟動 bash shell，但保持 CoSpec AI 在後台運行
+  # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行
+  cd "$WORKING_DIRECTORY" || {
+    echo "警告: 無法切換到工作目錄 $WORKING_DIRECTORY，使用當前目錄"
+    cd /home/flexy/workspace
+  }
   trap "kill $COSPEC_PID; exit" SIGINT SIGTERM
   exec "$@"
 fi

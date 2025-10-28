@@ -127,6 +127,9 @@ ENV GEMINI_API_KEY=
 ENV GEMINI_BASE_URL=
 ENV GEMINI_MODEL=
 
+# 設定工作目錄環境變數
+ENV WORKING_DIRECTORY=/home/flexy/workspace
+
 # 設定 CoSpec AI 環境變數
 ENV COSPEC_PORT=9280
 ENV MARKDOWN_DIR=/home/flexy/workspace
@@ -142,6 +145,9 @@ ENV TASK_COMPLETION_TIMEOUT=120000
 # 設定 WebTTY 環境變數
 # TMUX_HISTORY_LIMIT: tmux 歷史記錄限制 (預設: 10000)
 ENV TMUX_HISTORY_LIMIT=10000
+
+# 設定工作目錄
+WORKDIR ${WORKING_DIRECTORY}
 
 # 設定預設的 shell
 SHELL ["/bin/bash", "-c"]

@@ -14,6 +14,7 @@ show_usage() {
     echo "  -i, --image NAME             Image name (default: flexy-dev-sandbox)"
     echo "  -p, --port PORT              Host port to expose (default: 8080)"
     echo "  -m, --mount PATH             Host path to mount to container (optional)"
+    echo "  --workspace-path PATH        Container workspace path (default: /home/flexy/workspace)"
     echo "  -a, --anthropic-token TOKEN  Anthropic API token (optional)"
     echo "  -g, --github-token TOKEN     GitHub token (optional)"
     echo "  -t, --ttyd                   Expose ttyd port (port 9681)"
@@ -24,7 +25,7 @@ show_usage() {
     echo "Examples:"
     echo "  $0 --name my-dev-env --mount /home/user/project --port 8081"
     echo "  $0 --anthropic-token your-token --github-token your-github-token --webtty"
-    echo "  $0 --name cospec-env --cospec --mount /home/user/docs"
+    echo "  $0 --name cospec-env --cospec --mount /home/user/docs --workspace-path /home/flexy/my-workspace"
 }
 
 # Check if any arguments were provided
@@ -38,6 +39,7 @@ if [[ $# -eq 0 ]]; then
     IMAGE_NAME="flexy-dev-sandbox"
     HOST_PORT=8080
     MOUNT_PATH=""
+    WORKSPACE_PATH="/home/flexy/workspace"
     ANTHROPIC_TOKEN=""
     GITHUB_TOKEN=""
     EXPOSE_TTYD=false
@@ -69,6 +71,12 @@ if [[ $# -eq 0 ]]; then
     read -p "Host path to mount to container (optional, press Enter to skip): " input_mount
     if [ -n "$input_mount" ]; then
         MOUNT_PATH="$input_mount"
+    fi
+    
+    # Prompt for container workspace path
+    read -p "Container workspace path (default: /home/flexy/workspace): " input_workspace
+    if [ -n "$input_workspace" ]; then
+        WORKSPACE_PATH="$input_workspace"
     fi
     
     # Prompt for Anthropic token
@@ -122,6 +130,7 @@ else
     IMAGE_NAME="flexy-dev-sandbox"
     HOST_PORT=8080
     MOUNT_PATH=""
+    WORKSPACE_PATH="/home/flexy/workspace"
     ANTHROPIC_TOKEN=""
     GITHUB_TOKEN=""
     EXPOSE_TTYD=false
@@ -170,6 +179,10 @@ else
             -w|--webtty)
                 ENABLE_WEBTTY=true
                 shift
+                ;;
+            --workspace-path)
+                WORKSPACE_PATH="$2"
+                shift 2
                 ;;
             -h|--help)
                 show_usage
@@ -223,8 +236,8 @@ if [ -n "$MOUNT_PATH" ]; then
         echo "Error: Mount path does not exist: $MOUNT_PATH"
         exit 1
     fi
-    RUN_CMD="$RUN_CMD -v $MOUNT_PATH:/home/flexy/workspace"
-    echo "Mounting: $MOUNT_PATH -> /home/flexy/workspace"
+    RUN_CMD="$RUN_CMD -v $MOUNT_PATH:$WORKSPACE_PATH"
+    echo "Mounting: $MOUNT_PATH -> $WORKSPACE_PATH"
 fi
 
 # Add Anthropic token if specified

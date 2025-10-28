@@ -126,6 +126,44 @@ docker run --rm -v $(pwd):/home/flexy/projects flexy-dev-sandbox python3 script.
 - `ANTHROPIC_MODEL` - Claude 模型名稱
 - `ANTHROPIC_SMALL_FAST_MODEL` - Claude 小型快速模型名稱
 
+### 工作目錄環境變數
+- `WORKING_DIRECTORY` - 設定容器的預設工作目錄 (預設值: /home/flexy/workspace)
+
+## 工作目錄配置
+
+Flexy 開發環境現在支援可配置的預設工作目錄：
+
+### 預設工作目錄
+- 預設工作目錄為 `/home/flexy/workspace`
+- 容器啟動後，終端會自動切換到這個目錄
+- CoSpec AI Markdown 編輯器也預設使用此目錄
+
+### 自訂工作目錄
+您可以在啟動容器時設定 `WORKING_DIRECTORY` 環境變數來自訂工作目錄：
+
+```bash
+# 使用自訂工作目錄
+docker run -it --rm \
+  -e WORKING_DIRECTORY=/home/flexy/my-custom-workspace \
+  flexy-dev-sandbox
+
+# 與其他環境變數一起使用
+docker run -it --rm \
+  -e WORKING_DIRECTORY=/home/flexy/my-project \
+  -e ANTHROPIC_AUTH_TOKEN=your_token \
+  -v $(pwd):/home/flexy/my-project \
+  flexy-dev-sandbox
+```
+
+當使用 `create-flexy-sandbox.sh` 腳本時，您也可以指定工作目錄：
+```bash
+# 使用互動模式
+./scripts/create-flexy-sandbox.sh
+
+# 使用命令列參數
+./scripts/create-flexy-sandbox.sh --workspace-path /home/flexy/my-project
+```
+
 ## 目錄結構
 
 - `/home/flexy` - 使用者家目錄
