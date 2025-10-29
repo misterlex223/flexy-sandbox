@@ -50,7 +50,7 @@ cd <project-directory>
 docker run -it --rm flexy-dev-sandbox
 
 # 掛載本地目錄到容器中
-docker run -it --rm -v $(pwd):/home/flexy/projects flexy-dev-sandbox
+docker run -it --rm -v $(pwd):/home/flexy/workspace flexy-dev-sandbox
 
 # 設定 Claude Code 環境變數
 docker run -it --rm \
@@ -95,10 +95,10 @@ docker stop flexy-webtty
 docker run --rm flexy-dev-sandbox claude "幫我建立一個 Node.js Express 應用"
 
 # 執行 Node.js 應用
-docker run --rm -v $(pwd):/home/flexy/projects flexy-dev-sandbox node app.js
+docker run --rm -v $(pwd):/home/flexy/workspace flexy-dev-sandbox node app.js
 
 # 執行 Python 應用
-docker run --rm -v $(pwd):/home/flexy/projects flexy-dev-sandbox python3 script.py
+docker run --rm -v $(pwd):/home/flexy/workspace flexy-dev-sandbox python3 script.py
 ```
 
 ## 容器內可用工具
@@ -167,7 +167,7 @@ docker run -it --rm \
 ## 目錄結構
 
 - `/home/flexy` - 使用者家目錄
-- `/home/flexy/projects` - 掛載專案的推薦目錄
+- `/home/flexy/workspace` - 掛載專案的推薦目錄
 - `/home/flexy/.mcp.json` - Claude Code MCP 設定檔案
 - `/home/flexy/.claude/CLAUDE.md` - Claude Code 全域設定檔案
 

@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Claude Code**: AI 輔助開發工具
 - **ttyd + tmux**: 終端分享和持久化會話
 - **kai-notify**: LINE 通知整合 (npm package)
-- **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280/9281)
+- **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280)
 
 ### 使用者介面
 所有輸出應使用繁體中文。
@@ -58,11 +58,10 @@ flexy-sandbox/
 - `ANTHROPIC_SMALL_FAST_MODEL`: Claude 快速模型名稱
 - `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: 當前工作目錄，由 Docker WorkingDir 設定)
 - `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 9280)
-- `COSPEC_API_PORT`: CoSpec AI API 端口 (預設: 9281)
 
 #### init.sh (init.sh:1-65)
 容器啟動腳本，執行以下任務：
-- 建立專案目錄結構 (`/home/flexy/projects`)
+- 建立專案目錄結構 (`/home/flexy/workspace`)
 - 初始化 Git 配置（如果不存在）
 - 檢查 Claude Code 環境變數
 - 顯示環境資訊和可用指令
@@ -95,7 +94,7 @@ docker build -t flexy-dev-sandbox .
 docker run -it --rm \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
   -e GITHUB_TOKEN=your_github_token \
-  -v $(pwd):/home/flexy/projects \
+  -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
 ```
 
@@ -109,7 +108,7 @@ docker run --rm \
 **掛載本地專案目錄**
 ```bash
 docker run -it --rm \
-  -v $(pwd):/home/flexy/projects \
+  -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
 ```
 
@@ -119,10 +118,9 @@ docker run -it --rm \
 docker run -d --rm \
   -p 9681:9681 \
   -p 9280:9280 \
-  -p 9281:9281 \
   -e ENABLE_WEBTTY=true \
   -e ANTHROPIC_AUTH_TOKEN=your_token \
-  -v $(pwd):/home/flexy/projects \
+  -v $(pwd):/home/flexy/workspace \
   -v $(pwd)/markdown:/home/flexy/markdown \
   --name flexy-webtty \
   flexy-dev-sandbox
@@ -172,7 +170,7 @@ docker run -d --rm \
 ## 容器內目錄結構
 
 - `/home/flexy` - 使用者家目錄
-- `/home/flexy/projects` - 推薦的專案掛載點
+- `/home/flexy/workspace` - 推薦的專案掛載點
 - `/home/flexy/.local/bin` - 使用者安裝的執行檔（npm global packages）
 - `/home/flexy/.local/lib/node_modules` - npm global 模組目錄
 - `/home/flexy/.mcp.json` - MCP 伺服器配置
@@ -248,7 +246,6 @@ exec ttyd -p 9681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
 ### 網路服務
 - Port 9681: ttyd 網頁終端（WebTTY 模式）
 - Port 9280: CoSpec AI Markdown Editor 前端
-- Port 9281: CoSpec AI API 服務
 - 需要使用 `-p` 參數映射才能從主機存取
 
 ## Git 工作流程
@@ -318,13 +315,11 @@ CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即
 啟動容器後，可通過以下 URL 訪問：
 
 - **前端界面**: `http://localhost:9280`
-- **API 服務**: `http://localhost:9281`
 
 ### 環境變數配置
 
 - `MARKDOWN_DIR`: Markdown 文件存儲目錄（預設: 容器的當前工作目錄）
 - `COSPEC_PORT`: 前端服務端口（預設: 9280）
-- `COSPEC_API_PORT`: API 服務端口（預設: 9281）
 
 ### 自定義 Markdown 目錄
 
@@ -336,7 +331,6 @@ CoSpec AI 是整合在 Flexy Sandbox 中的 Markdown 編輯器，提供所見即
 docker run -d --rm \
   -p 9681:9681 \
   -p 9280:9280 \
-  -p 9281:9281 \
   -e ENABLE_WEBTTY=true \
   -e MARKDOWN_DIR=/custom/path \
   -v $(pwd)/my-docs:/custom/path \
@@ -372,10 +366,7 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 Kai 後端實現了完整的反向代理支援，路由優先級如下：
 
 1. **Shell 路由**: `/flexy/:id/shell/*` → 容器 port 9681
-2. **CoSpec AI API 路由**: `/flexy/:id/docs/api/*` → 容器 port 9281
 3. **CoSpec AI 前端路由**: `/flexy/:id/docs/*` → 容器 port 9280
-
-**重要**：API 路由必須在前端路由之前匹配，以確保 `/flexy/:id/docs/api/files` 被正確路由到 API 服務器（port 9281）而不是前端服務器（port 9280）。
 
 #### CoSpec AI 反向代理適配
 
