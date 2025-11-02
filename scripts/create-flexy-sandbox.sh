@@ -11,10 +11,11 @@ show_usage() {
     echo ""
     echo "Options:"
     echo "  -n, --name NAME              Container name (default: flexy-sandbox-<timestamp>)"
-    echo "  -i, --image NAME             Image name (default: flexy-dev-sandbox)"
+    echo "  -i, --image NAME             Image name (default: ghcr.io/misterlex223/flexy-sandbox)"
     echo "  -p, --port PORT              Host port to expose (default: 8080)"
     echo "  -m, --mount PATH             Host path to mount to container (optional)"
     echo "  --workspace-path PATH        Container workspace path (default: /home/flexy/workspace)"
+    echo "  --claude-config PATH         Host path to Claude config directory (optional)"
     echo "  -a, --anthropic-token TOKEN  Anthropic API token (optional)"
     echo "  -g, --github-token TOKEN     GitHub token (optional)"
     echo "  -t, --ttyd                   Expose ttyd port (port 9681)"
@@ -36,10 +37,11 @@ if [[ $# -eq 0 ]]; then
     
     # Default values for interactive mode
     CONTAINER_NAME="flexy-sandbox-$(date +%s)"
-    IMAGE_NAME="flexy-dev-sandbox"
+    IMAGE_NAME="ghcr.io/misterlex223/flexy-sandbox"
     HOST_PORT=8080
     MOUNT_PATH=""
     WORKSPACE_PATH="/home/flexy/workspace"
+    CLAUDE_CONFIG_PATH=""
     ANTHROPIC_TOKEN=""
     GITHUB_TOKEN=""
     EXPOSE_TTYD=false
@@ -78,7 +80,18 @@ if [[ $# -eq 0 ]]; then
     if [ -n "$input_workspace" ]; then
         WORKSPACE_PATH="$input_workspace"
     fi
-    
+
+    # Prompt for Claude config directory
+    echo ""
+    echo "Claude Code 配置目錄掛載選項："
+    echo "  如果您希望在多個容器間共享 Claude 配置，請指定主機上的配置目錄。"
+    echo "  建議使用: ~/.flexy-claude-config"
+    echo "  留空則使用容器內預設配置（不持久化）"
+    read -p "Claude config directory (optional, press Enter to skip): " input_claude_config
+    if [ -n "$input_claude_config" ]; then
+        CLAUDE_CONFIG_PATH="$input_claude_config"
+    fi
+
     # Prompt for Anthropic token
     read -p "Anthropic API token (optional, press Enter to skip): " input_anthropic
     if [ -n "$input_anthropic" ]; then
@@ -127,10 +140,11 @@ else
     # Parse command line arguments like before
     # Default values
     CONTAINER_NAME="flexy-sandbox-$(date +%s)"
-    IMAGE_NAME="flexy-dev-sandbox"
+    IMAGE_NAME="ghcr.io/misterlex223/flexy-sandbox"
     HOST_PORT=8080
     MOUNT_PATH=""
     WORKSPACE_PATH="/home/flexy/workspace"
+    CLAUDE_CONFIG_PATH=""
     ANTHROPIC_TOKEN=""
     GITHUB_TOKEN=""
     EXPOSE_TTYD=false
@@ -158,6 +172,10 @@ else
                 ;;
             -m|--mount)
                 MOUNT_PATH="$2"
+                shift 2
+                ;;
+            --claude-config)
+                CLAUDE_CONFIG_PATH="$2"
                 shift 2
                 ;;
             -a|--anthropic-token)
@@ -238,6 +256,23 @@ if [ -n "$MOUNT_PATH" ]; then
     fi
     RUN_CMD="$RUN_CMD -v $MOUNT_PATH:$WORKSPACE_PATH"
     echo "Mounting: $MOUNT_PATH -> $WORKSPACE_PATH"
+fi
+
+# Add Claude config directory mount if specified
+if [ -n "$CLAUDE_CONFIG_PATH" ]; then
+    # 展開 ~ 為實際的 home 目錄
+    CLAUDE_CONFIG_PATH="${CLAUDE_CONFIG_PATH/#\~/$HOME}"
+
+    # 如果目錄不存在，建立它
+    if [ ! -d "$CLAUDE_CONFIG_PATH" ]; then
+        echo "Claude config directory does not exist. Creating: $CLAUDE_CONFIG_PATH"
+        mkdir -p "$CLAUDE_CONFIG_PATH"
+        echo "✓ Created Claude config directory"
+    fi
+
+    RUN_CMD="$RUN_CMD -v $CLAUDE_CONFIG_PATH:/home/flexy/.claude"
+    echo "Mounting Claude config: $CLAUDE_CONFIG_PATH -> /home/flexy/.claude"
+    echo "  此配置將在容器間共享並持久化"
 fi
 
 # Add Anthropic token if specified

@@ -9,6 +9,15 @@ export LC_ALL=zh_TW.UTF-8
 # 建立常用目錄
 mkdir -p /home/flexy/.config
 
+# 安裝 AI 工具（根據環境變數動態安裝）
+echo "========================================"
+echo "  安裝 AI 工具"
+echo "========================================"
+/scripts/install-ai-tools.sh || {
+  echo "⚠ AI 工具安裝失敗，但繼續啟動容器"
+}
+echo ""
+
 # Initialize Qwen and Claude config directories if they're empty/uninitialized
 # This happens after mount points are established but before services start
 if [ ! "$(ls -A /home/flexy/.qwen 2>/dev/null)" ]; then
@@ -20,14 +29,70 @@ if [ ! "$(ls -A /home/flexy/.qwen 2>/dev/null)" ]; then
   fi
 fi
 
-if [ ! "$(ls -A /home/flexy/.claude 2>/dev/null)" ]; then
-  echo "Initializing Claude config directory with default settings..."
+# 初始化 Claude Code 配置
+# 策略：檢查個別文件是否存在，支援部分配置掛載
+echo "Initializing Claude Code configuration..."
+
+# 確保 .claude 目錄存在
+mkdir -p /home/flexy/.claude
+
+# 1. 處理 CLAUDE.md 配置
+if [ ! -f /home/flexy/.claude/CLAUDE.md ]; then
+  # 如果設定了環境變數，從環境變數生成配置（Kai 模式）
+  if [ -n "$CLAUDE_LANGUAGE" ] || [ -n "$CLAUDE_NOTIFICATION_ENABLED" ]; then
+    echo "從環境變數生成 CLAUDE.md 配置..."
+    cat > /home/flexy/.claude/CLAUDE.md << EOF
+# Claude Code 設定檔案
+
+## 使用者介面
+1. 一律以${CLAUDE_LANGUAGE:-繁體中文}輸出
+
+## 通用原則
+EOF
+
+    if [ "${CLAUDE_NOTIFICATION_ENABLED:-true}" = "true" ]; then
+      cat >> /home/flexy/.claude/CLAUDE.md << EOF
+1. 當你完成一個複雜或多步驟的任務時（auto-accept mode），請使用 /sendNotification 工具發送完成通知。
+2. 使用方式：/sendNotification --channel=${CLAUDE_NOTIFICATION_CHANNEL:-line} --message "任務完成: [具體完成的任務內容]"
+EOF
+    fi
+    echo "✓ 已從環境變數生成 CLAUDE.md"
+  # 否則複製預設配置模板
+  elif [ -f /home/flexy/CLAUDE.md ]; then
+    cp /home/flexy/CLAUDE.md /home/flexy/.claude/CLAUDE.md
+    echo "✓ 已複製預設 CLAUDE.md 配置"
+  else
+    echo "⚠ 警告: CLAUDE.md 配置模板不存在"
+  fi
+else
+  echo "✓ 使用現有 CLAUDE.md 配置"
+fi
+
+# 2. 處理 MCP 配置（智慧合併）
+if [ ! -f /home/flexy/.claude/.mcp.json ]; then
+  # 使用者配置不存在，複製預設配置
   if [ -f /home/flexy/default-mcp.json ]; then
     cp /home/flexy/default-mcp.json /home/flexy/.claude/.mcp.json
+    echo "✓ 已複製預設 MCP 配置"
+  else
+    echo "⚠ 警告: MCP 配置模板不存在"
   fi
-  # Copy CLAUDE.md if it exists
-  if [ -f /home/flexy/CLAUDE.md ]; then
-    cp /home/flexy/CLAUDE.md /home/flexy/.claude/CLAUDE.md
+else
+  # 使用者配置存在，嘗試合併以確保預設伺服器可用
+  if [ -f /home/flexy/default-mcp.json ] && [ -f /scripts/merge-mcp-config.sh ]; then
+    echo "正在合併 MCP 配置（預設 + 使用者）..."
+    # 備份使用者配置
+    cp /home/flexy/.claude/.mcp.json /home/flexy/.claude/.mcp.json.backup
+    # 執行合併
+    /scripts/merge-mcp-config.sh \
+      /home/flexy/default-mcp.json \
+      /home/flexy/.claude/.mcp.json.backup \
+      /home/flexy/.claude/.mcp.json || {
+        echo "⚠ MCP 配置合併失敗，保留使用者配置"
+        mv /home/flexy/.claude/.mcp.json.backup /home/flexy/.claude/.mcp.json
+      }
+  else
+    echo "✓ 使用現有 MCP 配置（未合併）"
   fi
 fi
 
@@ -37,29 +102,7 @@ if [ ! -f /home/flexy/.gitconfig ]; then
   git config --global user.name "Flexy"
 fi
 
-# 檢查並設定 Qwen 環境變數
-echo "檢查 Qwen 環境設定..."
-if [ -n "$QWEN_API_KEY" ]; then
-  echo "QWEN_API_KEY 已設定"
-else
-  echo "提示: QWEN_API_KEY 尚未設定"
-fi
-
-# 檢查並設定 Claude Code 環境變數
-echo "檢查 Claude Code 環境設定..."
-if [ -n "$ANTHROPIC_AUTH_TOKEN" ]; then
-  echo "ANTHROPIC_AUTH_TOKEN 已設定"
-else
-  echo "提示: ANTHROPIC_AUTH_TOKEN 尚未設定"
-fi
-
-# 檢查並設定 Gemini 環境變數
-echo "檢查 Gemini 環境設定..."
-if [ -n "$GEMINI_API_KEY" ]; then
-  echo "GEMINI_API_KEY 已設定"
-else
-  echo "提示: GEMINI_API_KEY 尚未設定"
-fi
+# AI 工具環境變數檢查已整合到下方的「AI 工具配置」診斷中
 
 # 顯示環境資訊
 echo "========================================"
@@ -73,27 +116,72 @@ echo "GitHub CLI version: $(gh --version | head -n 1)"
 echo "Claude Code version: $(claude --version 2>/dev/null || echo 'Claude Code installed')"
 echo "========================================"
 echo ""
-echo "環境變數："
-echo "- QWEN_API_KEY: ${QWEN_API_KEY:-未設定}"
-echo "- QWEN_BASE_URL: ${QWEN_BASE_URL:-未設定}"
-echo "- QWEN_MODEL: ${QWEN_MODEL:-未設定}"
+echo "========================================"
+echo "  AI 工具配置"
+echo "========================================"
+for i in {0..4}; do
+  AI_TYPE_VAR="AI_WINDOW_${i}_TYPE"
+  AI_TYPE="${!AI_TYPE_VAR}"
+
+  if [ -n "$AI_TYPE" ]; then
+    echo "Window $i: $AI_TYPE"
+    API_KEY_VAR="AI_WINDOW_${i}_API_KEY"
+    MODEL_VAR="AI_WINDOW_${i}_MODEL"
+    BASE_URL_VAR="AI_WINDOW_${i}_BASE_URL"
+    echo "  - API Key: ${!API_KEY_VAR:+已設定}"
+    echo "  - Model: ${!MODEL_VAR:-預設}"
+    echo "  - Base URL: ${!BASE_URL_VAR:-預設}"
+  else
+    echo "Window $i: bash shell (未配置 AI 工具)"
+  fi
+done
+echo "Window 5: user terminal (固定)"
 echo ""
-echo "- ANTHROPIC_AUTH_TOKEN: ${ANTHROPIC_AUTH_TOKEN:-未設定}"
-echo "- ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-未設定}"
-echo "- ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-未設定}"
-echo "- ANTHROPIC_SMALL_FAST_MODEL: ${ANTHROPIC_SMALL_FAST_MODEL:-未設定}"
-echo ""
-echo "- GEMINI_API_KEY: ${GEMINI_API_KEY:-未設定}"
-echo "- GEMINI_BASE_URL: ${GEMINI_BASE_URL:-未設定}"
-echo "- GEMINI_MODEL: ${GEMINI_MODEL:-未設定}"
-echo ""
-echo "MCP 伺服器："
-if [ -f /home/flexy/.mcp.json ]; then
-  echo "- MCP 設定檔案已建立"
-  echo "- 可用伺服器: $(cat /home/flexy/.mcp.json | grep '"type"' | wc -l) 個"
+echo "========================================"
+echo "  Claude Code 配置診斷"
+echo "========================================"
+
+# 檢查配置文件位置和來源
+echo "配置文件檢查："
+
+# CLAUDE.md 檢查
+if [ -f /home/flexy/.claude/CLAUDE.md ]; then
+  echo "✓ 使用者級 CLAUDE.md: /home/flexy/.claude/CLAUDE.md"
+  # 檢查是否為環境變數生成
+  if [ -n "$CLAUDE_LANGUAGE" ] || [ -n "$CLAUDE_NOTIFICATION_ENABLED" ]; then
+    echo "  來源: 環境變數生成"
+  else
+    echo "  來源: 預設模板或使用者掛載"
+  fi
 else
-  echo "- MCP 設定檔案不存在"
+  echo "✗ 使用者級 CLAUDE.md 不存在"
 fi
+
+# 專案級 CLAUDE.md 檢查
+if [ -f /home/flexy/workspace/.claude/CLAUDE.md ]; then
+  echo "⚠ 專案級 CLAUDE.md 存在（將覆蓋使用者級配置）"
+  echo "  路徑: /home/flexy/workspace/.claude/CLAUDE.md"
+fi
+
+# MCP 配置檢查
+if [ -f /home/flexy/.claude/.mcp.json ]; then
+  echo "✓ 使用者級 MCP 配置: /home/flexy/.claude/.mcp.json"
+  # 顯示已配置的 MCP 伺服器
+  if command -v jq &> /dev/null; then
+    echo "  已配置 MCP 伺服器："
+    jq -r '.mcp.servers | keys[]' /home/flexy/.claude/.mcp.json 2>/dev/null | sed 's/^/    - /' || echo "    (無法解析 JSON)"
+  else
+    echo "  MCP 伺服器數量: $(grep -o '"type"' /home/flexy/.claude/.mcp.json 2>/dev/null | wc -l | tr -d ' ')"
+  fi
+else
+  echo "✗ 使用者級 MCP 配置不存在"
+fi
+
+echo ""
+echo "配置優先級："
+echo "1. 專案級: /home/flexy/workspace/.claude/ (最高優先級)"
+echo "2. 使用者級: /home/flexy/.claude/ (預設)"
+echo "3. 環境變數: CLAUDE_* 變數 (用於動態生成)"
 echo ""
 echo "Ready to start developing!"
 echo ""
@@ -167,11 +255,10 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
 
   # 啟動 AI 會話監控器 (handles session creation and management)
   echo "啟動 AI 會話監控器..."
-  echo "AI 會話監控器將建立以下 tmux 窗口順序:"
-  echo "- window:0 QWEN CLI"
-  echo "- window:1 Claude Code"
-  echo "- window:2 Gemini CLI"
-  echo "- window:3 User"
+  echo "AI 會話監控器將根據環境變數建立 tmux 窗口"
+  echo "配置的 windows 將顯示對應的 AI 工具"
+  echo "未配置的 windows 將顯示 bash shell"
+  echo "Window 5 固定為使用者終端"
   node /usr/local/bin/ai-session-monitor.js > /home/flexy/ai-monitor.log 2>&1 &
   AI_MONITOR_PID=$!
   echo "AI 會話監控器已啟動 (PID: $AI_MONITOR_PID)"

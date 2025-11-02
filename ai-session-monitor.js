@@ -12,6 +12,101 @@ console.log(`Environment variables: ENABLE_PERSISTENT_AI_SESSIONS=${ENABLE_PERSI
 
 const SESSION_NAME = 'shared_session';
 const MONITOR_INTERVAL = 5000; // Check every 5 seconds
+const MAX_WINDOWS = 5; // Windows 0-4 are configurable, window 5 is user terminal
+
+// AI 工具命令映射
+const AI_COMMANDS = {
+    'qwen': 'qwen',
+    'claude': 'claude',
+    'gemini': 'gemini',
+    'codex': 'codex'
+};
+
+// AI 工具環境變數映射（用於啟動命令）
+const AI_ENV_MAPPINGS = {
+    'qwen': {
+        apiKey: 'QWEN_API_KEY',
+        model: 'QWEN_MODEL',
+        baseUrl: 'QWEN_BASE_URL'
+    },
+    'claude': {
+        apiKey: 'ANTHROPIC_AUTH_TOKEN',
+        model: 'ANTHROPIC_MODEL',
+        baseUrl: 'ANTHROPIC_BASE_URL'
+    },
+    'gemini': {
+        apiKey: 'GEMINI_API_KEY',
+        model: 'GEMINI_MODEL',
+        baseUrl: 'GEMINI_BASE_URL'
+    },
+    'codex': {
+        apiKey: 'OPENAI_API_KEY',
+        model: 'OPENAI_MODEL',
+        baseUrl: 'OPENAI_BASE_URL'
+    }
+};
+
+/**
+ * 從環境變數解析單一 window 配置
+ * @param {number} windowIndex - Window 索引 (0-4)
+ * @returns {object|null} - 配置物件或 null
+ */
+function getWindowConfig(windowIndex) {
+    const type = process.env[`AI_WINDOW_${windowIndex}_TYPE`];
+    if (!type) return null;
+
+    const apiKey = process.env[`AI_WINDOW_${windowIndex}_API_KEY`];
+    const model = process.env[`AI_WINDOW_${windowIndex}_MODEL`];
+    const baseUrl = process.env[`AI_WINDOW_${windowIndex}_BASE_URL`];
+
+    return {
+        type: type.toLowerCase(),
+        apiKey,
+        model,
+        baseUrl,
+        windowIndex,
+        windowName: `${type}_session`
+    };
+}
+
+/**
+ * 取得所有配置的 windows
+ * @returns {Array} - Window 配置陣列
+ */
+function getAllWindowConfigs() {
+    const configs = [];
+    for (let i = 0; i < MAX_WINDOWS; i++) {
+        const config = getWindowConfig(i);
+        configs.push(config);
+    }
+    return configs;
+}
+
+/**
+ * 生成 AI 工具啟動命令
+ * @param {object} config - Window 配置
+ * @returns {string} - 啟動命令
+ */
+function generateAICommand(config) {
+    const { type, apiKey, model, baseUrl } = config;
+    const cmd = AI_COMMANDS[type];
+
+    if (!cmd) {
+        console.error(`Unknown AI type: ${type}`);
+        return null;
+    }
+
+    // 設定環境變數到全域環境（供 AI CLI 讀取）
+    const envMapping = AI_ENV_MAPPINGS[type];
+    if (envMapping) {
+        if (apiKey) process.env[envMapping.apiKey] = apiKey;
+        if (model) process.env[envMapping.model] = model;
+        if (baseUrl) process.env[envMapping.baseUrl] = baseUrl;
+    }
+
+    // 返回基本命令（AI CLI 會從環境變數讀取配置）
+    return cmd;
+}
 
 // Main initialization function - create tmux session and windows if they don't exist
 async function initializeSession() {
@@ -20,32 +115,46 @@ async function initializeSession() {
         const sessionExists = await checkSessionExists(SESSION_NAME);
         if (!sessionExists) {
             console.log(`Creating tmux session: ${SESSION_NAME}`);
-            
+
             if (ENABLE_PERSISTENT_AI_SESSIONS === 'true') {
-                // Create the main session with Qwen window (window 0)
-                await execAsync(`tmux new -d -s ${SESSION_NAME} -n qwen_session`);
-                
-                // Create Claude session window (window 1)
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:1 -n claude_session`);
-                
-                // Create Gemini session window (window 2)
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
-                
-                // Create User session window (window 3)
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
-                
-                // If in interactive mode, start AI CLIs
-                if (AI_SESSION_MODE === 'interactive') {
-                    console.log('Starting AI CLI tools in interactive mode...');
-                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
-                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:1 'claude' Enter`);
-                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
+                const windowConfigs = getAllWindowConfigs();
+                let firstWindowCreated = false;
+
+                // 建立 windows（0-4）
+                for (let i = 0; i < MAX_WINDOWS; i++) {
+                    const config = windowConfigs[i];
+                    const windowName = config ? config.windowName : `shell_${i}`;
+
+                    if (!firstWindowCreated) {
+                        // 建立第一個 window（同時建立 session）
+                        await execAsync(`tmux new -d -s ${SESSION_NAME} -n ${windowName}`);
+                        firstWindowCreated = true;
+                        console.log(`Created session with window ${i}: ${windowName}`);
+                    } else {
+                        // 建立後續 windows
+                        await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${windowName}`);
+                        console.log(`Created window ${i}: ${windowName}`);
+                    }
+
+                    // 如果是 AI 工具且為 interactive 模式，啟動 AI CLI
+                    if (config && AI_SESSION_MODE === 'interactive') {
+                        const aiCmd = generateAICommand(config);
+                        if (aiCmd) {
+                            console.log(`Starting ${config.type} in window ${i}...`);
+                            await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
+                        }
+                    }
                 }
+
+                // 建立 window 5（使用者終端，固定）
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
+                console.log('Created window 5: user_session');
+
             } else {
-                // Create the main session with user window (window 0) if persistent AI sessions are disabled
+                // 如果未啟用持久化 AI 會話，只建立使用者終端
                 await execAsync(`tmux new -d -s ${SESSION_NAME} -n user_session`);
             }
-            
+
             console.log(`Session ${SESSION_NAME} initialized with all windows`);
         } else {
             console.log(`Session ${SESSION_NAME} already exists`);
@@ -71,7 +180,7 @@ function checkSessionExists(sessionName) {
 
 function checkWindowRunning(sessionName, windowIndex) {
     return new Promise((resolve) => {
-        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_dead}' 2>/dev/null | head -n 1`, 
+        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_dead}' 2>/dev/null | head -n 1`,
         (error, stdout) => {
             if (error) {
                 console.log(`Error checking window ${sessionName}:${windowIndex} status:`, error.message);
@@ -87,7 +196,7 @@ function checkWindowRunning(sessionName, windowIndex) {
 
 function checkAIProcessRunning(sessionName, windowIndex, aiCmd) {
     return new Promise((resolve) => {
-        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_current_command}' 2>/dev/null | head -n 1`, 
+        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_current_command}' 2>/dev/null | head -n 1`,
         (error, stdout) => {
             if (error || !stdout.trim()) {
                 console.log(`Window ${windowIndex} process check failed or empty:`, error ? error.message : 'no output');
@@ -96,16 +205,16 @@ function checkAIProcessRunning(sessionName, windowIndex, aiCmd) {
             }
             const currentCmd = stdout.trim().toLowerCase();
             console.log(`Window ${windowIndex} current command: "${currentCmd}", looking for: "${aiCmd}"`);
-            
+
             // Check if the current command matches our AI command (case-insensitive)
             // Also include more robust checks to handle cases where the command shows as 'node' or other parent processes
             let isRunning = currentCmd.includes(aiCmd.toLowerCase());
-            
+
             // If basic check fails, do a more thorough check with ps to see if the AI process is running
             if (!isRunning) {
                 exec(`ps aux | grep -v grep | grep ${aiCmd}`, (psError, psStdout) => {
                     if (!psError && psStdout) {
-                        // Additional check: if we see the AI command in the process list, 
+                        // Additional check: if we see the AI command in the process list,
                         // it might be running as a child process even if tmux doesn't show it
                         console.log(`Found ${aiCmd} in process list: ${psStdout.trim()}`);
                         isRunning = true;
@@ -125,28 +234,16 @@ function checkAIProcessRunning(sessionName, windowIndex, aiCmd) {
 const lastRestartTime = {};
 
 async function restartAIInWindow(windowIndex, aiCmd) {
-    const windowNames = {
-        0: 'qwen_session',
-        1: 'claude_session',
-        2: 'gemini_session'
-    };
-    
-    const windowName = windowNames[windowIndex];
-    if (!windowName) {
-        console.log(`Window index ${windowIndex} is not an AI window, skipping restart`);
-        return;
-    }
-    
     // Prevent restarting too frequently
     const currentTime = Date.now();
     const key = `${windowIndex}-${aiCmd}`;
     if (lastRestartTime[key] && (currentTime - lastRestartTime[key]) < 3000) {
-        console.log(`Skipping restart for ${aiCmd} in ${windowName} (window ${windowIndex}) - too frequent`);
+        console.log(`Skipping restart for ${aiCmd} in window ${windowIndex} - too frequent`);
         return;
     }
-    
-    console.log(`Restarting ${aiCmd} in ${windowName} (window ${windowIndex})`);
-    
+
+    console.log(`Restarting ${aiCmd} in window ${windowIndex}`);
+
     try {
         // Clear the pane first to ensure a clean restart
         await execAsync(`tmux send-keys -t ${SESSION_NAME}:${windowIndex} 'C-c' Enter`);
@@ -156,7 +253,7 @@ async function restartAIInWindow(windowIndex, aiCmd) {
         // Send the AI command to the window
         await execAsync(`tmux send-keys -t ${SESSION_NAME}:${windowIndex} '${aiCmd}' Enter`);
         lastRestartTime[key] = currentTime;
-        console.log(`${aiCmd} restarted in ${windowName}`);
+        console.log(`${aiCmd} restarted in window ${windowIndex}`);
     } catch (error) {
         console.error(`Error restarting ${aiCmd}:`, error);
     }
@@ -166,47 +263,37 @@ async function ensureWindowsExist() {
     if (ENABLE_PERSISTENT_AI_SESSIONS !== 'true') {
         return; // Only manage windows if persistent AI sessions are enabled
     }
-    
+
     try {
-        // Check if Qwen window exists (window 0)
-        const qwenRunning = await checkWindowRunning(SESSION_NAME, 0);
-        if (!qwenRunning) {
-            console.log('Qwen window missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n qwen_session`);
-            if (AI_SESSION_MODE === 'interactive') {
-                await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
+        const windowConfigs = getAllWindowConfigs();
+
+        // 檢查並重建 windows 0-4
+        for (let i = 0; i < MAX_WINDOWS; i++) {
+            const config = windowConfigs[i];
+            const windowName = config ? config.windowName : `shell_${i}`;
+            const windowRunning = await checkWindowRunning(SESSION_NAME, i);
+
+            if (!windowRunning) {
+                console.log(`Window ${i} missing, creating...`);
+                await execAsync(`tmux kill-window -t ${SESSION_NAME}:${i} 2>/dev/null || true`);
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${windowName}`);
+
+                // 如果是 AI 工具且為 interactive 模式，啟動 AI CLI
+                if (config && AI_SESSION_MODE === 'interactive') {
+                    const aiCmd = generateAICommand(config);
+                    if (aiCmd) {
+                        await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
+                    }
+                }
             }
         }
 
-        // Check if Claude window exists (window 1)
-        const claudeRunning = await checkWindowRunning(SESSION_NAME, 1);
-        if (!claudeRunning) {
-            console.log('Claude window missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:1 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:1 -n claude_session`);
-            if (AI_SESSION_MODE === 'interactive') {
-                await execAsync(`tmux send-keys -t ${SESSION_NAME}:1 'claude' Enter`);
-            }
-        }
-
-        // Check if Gemini window exists (window 2)
-        const geminiRunning = await checkWindowRunning(SESSION_NAME, 2);
-        if (!geminiRunning) {
-            console.log('Gemini window missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:2 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
-            if (AI_SESSION_MODE === 'interactive') {
-                await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
-            }
-        }
-        
-        // Check if User window exists (window 3)
-        const userRunning = await checkWindowRunning(SESSION_NAME, 3);
+        // 檢查使用者終端（window 5）
+        const userRunning = await checkWindowRunning(SESSION_NAME, 5);
         if (!userRunning) {
             console.log('User window missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:3 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
+            await execAsync(`tmux kill-window -t ${SESSION_NAME}:5 2>/dev/null || true`);
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
         }
     } catch (error) {
         console.error('Error ensuring windows exist:', error);
@@ -230,82 +317,50 @@ async function monitorSessions() {
 
         await ensureWindowsExist();
 
-        // Check Qwen session (window 0)
-        console.log('Checking Qwen session...');
-        const qwenRunning = await checkWindowRunning(SESSION_NAME, 0);
-        console.log(`Qwen window running: ${qwenRunning}`);
-        if (qwenRunning) {
-            const qwenProcessRunning = await checkAIProcessRunning(SESSION_NAME, 0, 'qwen');
-            console.log(`Qwen process running: ${qwenProcessRunning}`);
-            if (!qwenProcessRunning && AI_SESSION_MODE === 'interactive') {
-                console.log('Qwen process not running, restarting...');
-                await restartAIInWindow(0, 'qwen');
-            } else {
-                console.log('Qwen process is running as expected');
+        // 監控所有配置的 AI windows
+        const windowConfigs = getAllWindowConfigs();
+        for (let i = 0; i < MAX_WINDOWS; i++) {
+            const config = windowConfigs[i];
+            if (!config) continue; // 跳過未配置的 window
+
+            console.log(`Checking ${config.type} session (window ${i})...`);
+            const windowRunning = await checkWindowRunning(SESSION_NAME, i);
+            console.log(`Window ${i} running: ${windowRunning}`);
+
+            if (windowRunning) {
+                const aiCmd = AI_COMMANDS[config.type];
+                const processRunning = await checkAIProcessRunning(SESSION_NAME, i, aiCmd);
+                console.log(`${config.type} process running: ${processRunning}`);
+
+                if (!processRunning && AI_SESSION_MODE === 'interactive') {
+                    console.log(`${config.type} process not running, restarting...`);
+                    await restartAIInWindow(i, aiCmd);
+                } else {
+                    console.log(`${config.type} process is running as expected`);
+                }
+            } else if (AI_SESSION_MODE === 'interactive') {
+                // Window is dead, try to restart it
+                console.log(`Window ${i} (${config.type}) is dead, restarting...`);
+                await execAsync(`tmux kill-window -t ${SESSION_NAME}:${i} 2>/dev/null || true`);
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${config.windowName}`);
+                const aiCmd = generateAICommand(config);
+                if (aiCmd) {
+                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
+                }
+                console.log(`Window ${i} (${config.type}) restarted`);
             }
-        } else if (AI_SESSION_MODE === 'interactive') {
-            // Window is dead, try to restart it
-            console.log('Qwen window is dead, restarting...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n qwen_session`);
-            await execAsync(`tmux send-keys -t ${SESSION_NAME}:0 'qwen' Enter`);
-            console.log('Qwen window restarted');
         }
 
-        // Check Claude session (window 1)
-        console.log('Checking Claude session...');
-        const claudeRunning = await checkWindowRunning(SESSION_NAME, 1);
-        console.log(`Claude window running: ${claudeRunning}`);
-        if (claudeRunning) {
-            const claudeProcessRunning = await checkAIProcessRunning(SESSION_NAME, 1, 'claude');
-            console.log(`Claude process running: ${claudeProcessRunning}`);
-            if (!claudeProcessRunning && AI_SESSION_MODE === 'interactive') {
-                console.log('Claude process not running, restarting...');
-                await restartAIInWindow(1, 'claude');
-            } else {
-                console.log('Claude process is running as expected');
-            }
-        } else if (AI_SESSION_MODE === 'interactive') {
-            // Window is dead, try to restart it
-            console.log('Claude window is dead, restarting...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:1 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:1 -n claude_session`);
-            await execAsync(`tmux send-keys -t ${SESSION_NAME}:1 'claude' Enter`);
-            console.log('Claude window restarted');
-        }
-
-        // Check Gemini session (window 2)
-        console.log('Checking Gemini session...');
-        const geminiRunning = await checkWindowRunning(SESSION_NAME, 2);
-        console.log(`Gemini window running: ${geminiRunning}`);
-        if (geminiRunning) {
-            const geminiProcessRunning = await checkAIProcessRunning(SESSION_NAME, 2, 'gemini');
-            console.log(`Gemini process running: ${geminiProcessRunning}`);
-            if (!geminiProcessRunning && AI_SESSION_MODE === 'interactive') {
-                console.log('Gemini process not running, restarting...');
-                await restartAIInWindow(2, 'gemini');
-            } else {
-                console.log('Gemini process is running as expected');
-            }
-        } else if (AI_SESSION_MODE === 'interactive') {
-            // Window is dead, try to restart it
-            console.log('Gemini window is dead, restarting...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:2 2>/dev/null || true`); // Clean up dead window if any
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:2 -n gemini_session`);
-            await execAsync(`tmux send-keys -t ${SESSION_NAME}:2 'gemini' Enter`);
-            console.log('Gemini window restarted');
-        }
-
-        // Check user session (window 3) - just ensure window exists, no process to monitor
+        // 檢查使用者終端（window 5）
         console.log('Checking user session...');
-        const userRunning = await checkWindowRunning(SESSION_NAME, 3);
+        const userRunning = await checkWindowRunning(SESSION_NAME, 5);
         console.log(`User window running: ${userRunning}`);
         if (!userRunning) {
             console.log('User window is dead, restarting...');
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:3 -n user_session`);
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
             console.log('User window restarted');
         }
-        
+
         console.log('=== Completed monitorSessions cycle ===');
     } catch (error) {
         console.error('Error in monitorSessions:', error);
@@ -315,11 +370,26 @@ async function monitorSessions() {
 // Initialize the session when the script starts
 async function startMonitoring() {
     console.log('AI session monitor starting...');
+
+    // 顯示配置摘要
+    console.log('Window configuration:');
+    const windowConfigs = getAllWindowConfigs();
+    for (let i = 0; i < MAX_WINDOWS; i++) {
+        const config = windowConfigs[i];
+        if (config) {
+            console.log(`  Window ${i}: ${config.type}`);
+        } else {
+            console.log(`  Window ${i}: bash shell (未配置 AI 工具)`);
+        }
+    }
+    console.log('  Window 5: user terminal (固定)');
+    console.log('');
+
     await initializeSession();
-    
+
     // Run the monitor at regular intervals
     setInterval(monitorSessions, MONITOR_INTERVAL);
-    
+
     // Also run immediately once after giving AI CLIs time to start up
     setTimeout(monitorSessions, 3000); // Run first check after 3 seconds to allow AI tools to start
 }

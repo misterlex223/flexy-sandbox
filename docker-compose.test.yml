@@ -1,0 +1,63 @@
+# 測試用 Docker Compose 配置
+# 使用方式：docker-compose -f docker-compose.test.yml up
+
+version: '3.8'
+
+services:
+  # 測試 1: 配置 3 種 AI 工具（新版配置）
+  flexy-test-new-config:
+    image: flexy-dev-sandbox:test
+    container_name: flexy-test-new-config
+    ports:
+      - "19681:9681"  # ttyd
+      - "19280:9280"  # CoSpec AI
+    environment:
+      - ENABLE_WEBTTY=true
+      - AI_WINDOW_0_TYPE=qwen
+      - AI_WINDOW_0_API_KEY=test-qwen-key
+      - AI_WINDOW_1_TYPE=claude
+      - AI_WINDOW_1_API_KEY=test-claude-key
+      - AI_WINDOW_2_TYPE=gemini
+      - AI_WINDOW_2_API_KEY=test-gemini-key
+    volumes:
+      - ./test-workspace:/home/flexy/workspace
+    stdin_open: true
+    tty: true
+
+  # 測試 2: 自訂 Window 配置（只配置部分 windows）
+  flexy-test-custom-config:
+    image: flexy-dev-sandbox:test
+    container_name: flexy-test-custom-config
+    ports:
+      - "39681:9681"
+      - "39280:9280"
+    environment:
+      - ENABLE_WEBTTY=true
+      - AI_WINDOW_1_TYPE=claude
+      - AI_WINDOW_1_API_KEY=test-claude-key
+      - AI_WINDOW_3_TYPE=qwen
+      - AI_WINDOW_3_API_KEY=test-qwen-key
+      # Window 0, 2, 4 未配置，將顯示 bash shell
+    volumes:
+      - ./test-workspace:/home/flexy/workspace
+    stdin_open: true
+    tty: true
+    profiles:
+      - custom
+
+  # 測試 3: 無 AI 工具配置（所有 windows 都是 bash shell）
+  flexy-test-no-ai:
+    image: flexy-dev-sandbox:test
+    container_name: flexy-test-no-ai
+    ports:
+      - "49681:9681"
+      - "49280:9280"
+    environment:
+      - ENABLE_WEBTTY=true
+      # 不設定任何 AI_WINDOW_*_TYPE
+    volumes:
+      - ./test-workspace:/home/flexy/workspace
+    stdin_open: true
+    tty: true
+    profiles:
+      - no-ai

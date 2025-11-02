@@ -11,7 +11,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Node.js (LTS)**: JavaScript 執行環境
 - **Python 3**: Python 執行環境
 - **Git + GitHub CLI (gh)**: 版本控制和 GitHub 整合
-- **Claude Code**: AI 輔助開發工具
+- **AI 工具（按需安裝）**:
+  - Qwen Code (`@qwen-code/qwen-code`)
+  - Claude Code (`@anthropic-ai/claude-code`)
+  - Gemini CLI (`@google/gemini-cli`)
+  - OpenAI Codex (`@openai/codex`)
 - **ttyd + tmux**: 終端分享和持久化會話
 - **kai-notify**: LINE 通知整合 (npm package)
 - **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280)
@@ -52,12 +56,19 @@ flexy-sandbox/
 8. 設定環境變數和入口點
 
 **重要環境變數**:
-- `ANTHROPIC_AUTH_TOKEN`: Claude API 認證令牌
-- `ANTHROPIC_BASE_URL`: Claude API 基礎 URL (可選)
-- `ANTHROPIC_MODEL`: Claude 主要模型名稱
-- `ANTHROPIC_SMALL_FAST_MODEL`: Claude 快速模型名稱
+
+**AI 工具動態配置**:
+- `AI_WINDOW_0_TYPE`: Window 0 的 AI 工具類型（qwen|claude|gemini|codex）
+- `AI_WINDOW_0_API_KEY`: Window 0 的 API Key
+- `AI_WINDOW_0_MODEL`: Window 0 的模型名稱（可選）
+- `AI_WINDOW_0_BASE_URL`: Window 0 的 API Base URL（可選）
+- `AI_WINDOW_1_TYPE` ~ `AI_WINDOW_4_TYPE`: Window 1-4 的配置（同上格式）
+
+**其他環境變數**:
 - `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: 當前工作目錄，由 Docker WorkingDir 設定)
 - `COSPEC_PORT`: CoSpec AI 前端端口 (預設: 9280)
+- `ENABLE_WEBTTY`: 啟用 WebTTY 模式（預設: false）
+- `AI_SESSION_MODE`: AI CLI 啟動模式（interactive|on-demand，預設: interactive）
 
 #### init.sh (init.sh:1-65)
 容器啟動腳本，執行以下任務：
@@ -89,13 +100,37 @@ docker build -t flexy-dev-sandbox .
 
 ### 執行容器
 
-**互動式模式（含環境變數）**
+**方式 1: 使用新版動態配置（推薦）**
 ```bash
 docker run -it --rm \
-  -e ANTHROPIC_AUTH_TOKEN=your_token \
+  -e AI_WINDOW_0_TYPE=qwen \
+  -e AI_WINDOW_0_API_KEY=sk-xxx \
+  -e AI_WINDOW_1_TYPE=claude \
+  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_2_TYPE=gemini \
+  -e AI_WINDOW_2_API_KEY=AIza-xxx \
   -e GITHUB_TOKEN=your_github_token \
   -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
+```
+
+**方式 2: 自訂 Window 配置**
+```bash
+# 例如：只在 Window 0 和 Window 2 配置 AI 工具
+docker run -it --rm \
+  -e AI_WINDOW_0_TYPE=claude \
+  -e AI_WINDOW_0_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_2_TYPE=qwen \
+  -e AI_WINDOW_2_API_KEY=sk-xxx \
+  -e AI_WINDOW_2_MODEL=qwen-max \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
+# Window 0: Claude
+# Window 1: bash shell (未配置)
+# Window 2: Qwen
+# Window 3: bash shell (未配置)
+# Window 4: bash shell (未配置)
+# Window 5: user terminal (固定)
 ```
 
 **一次性執行 Claude Code 任務**
@@ -133,12 +168,147 @@ docker run -d --rm \
 
 ### 容器內可用指令
 
-- `claude` - Claude Code CLI
-- `claude commit` - 建立 Git 提交訊息
-- `claude mcp list` - 列出 MCP 伺服器
+根據你的配置，以下 AI 工具可能可用：
+- `qwen` - Qwen Code CLI（如果已配置並安裝）
+- `claude` - Claude Code CLI（如果已配置並安裝）
+- `gemini` - Gemini CLI（如果已配置並安裝）
+- `codex` - OpenAI Codex CLI（如果已配置並安裝）
+
+其他工具：
 - `node` / `npm` - Node.js 工具
 - `python3` / `pip3` - Python 工具
 - `git` / `gh` - 版本控制和 GitHub CLI
+
+## 動態 AI 工具配置（新功能）
+
+### 概述
+
+Flexy Sandbox 支援在容器啟動時動態安裝和配置 AI 工具，無需重新建置映像。前 5 個 tmux windows（0-4）可自由配置，Window 5 固定為使用者終端。
+
+### 支援的 AI 工具
+
+| 工具名稱 | TYPE 值 | npm 套件 |
+|---------|---------|----------|
+| Qwen Code | `qwen` | `@qwen-code/qwen-code@latest` |
+| Claude Code | `claude` | `@anthropic-ai/claude-code` |
+| Gemini CLI | `gemini` | `@google/gemini-cli` |
+| OpenAI Codex | `codex` | `@openai/codex` |
+
+### 配置環境變數格式
+
+每個 window 需要以下環境變數：
+
+```bash
+AI_WINDOW_<N>_TYPE=<qwen|claude|gemini|codex>  # AI 工具類型（必填）
+AI_WINDOW_<N>_API_KEY=<your-api-key>            # API 金鑰（必填）
+AI_WINDOW_<N>_MODEL=<model-name>                # 模型名稱（可選）
+AI_WINDOW_<N>_BASE_URL=<api-base-url>           # API Base URL（可選）
+```
+
+其中 `<N>` 可以是 0, 1, 2, 3, 4。
+
+### 使用範例
+
+#### 範例 1: 配置 3 種 AI 工具
+
+```bash
+docker run -d --rm \
+  -p 9681:9681 -p 9280:9280 \
+  -e ENABLE_WEBTTY=true \
+  -e AI_WINDOW_0_TYPE=qwen \
+  -e AI_WINDOW_0_API_KEY=sk-xxx \
+  -e AI_WINDOW_1_TYPE=claude \
+  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_2_TYPE=gemini \
+  -e AI_WINDOW_2_API_KEY=AIza-xxx \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
+```
+
+**結果**:
+- Window 0: Qwen CLI
+- Window 1: Claude Code
+- Window 2: Gemini CLI
+- Window 3: bash shell（未配置）
+- Window 4: bash shell（未配置）
+- Window 5: user terminal（固定）
+
+#### 範例 2: 只配置 Claude 和 Gemini
+
+```bash
+docker run -d --rm \
+  -e ENABLE_WEBTTY=true \
+  -e AI_WINDOW_1_TYPE=claude \
+  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_3_TYPE=gemini \
+  -e AI_WINDOW_3_API_KEY=AIza-xxx \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
+```
+
+**結果**:
+- Window 0: bash shell（未配置）
+- Window 1: Claude Code
+- Window 2: bash shell（未配置）
+- Window 3: Gemini CLI
+- Window 4: bash shell（未配置）
+- Window 5: user terminal（固定）
+
+#### 範例 3: 使用自訂模型和 Base URL
+
+```bash
+docker run -d --rm \
+  -e ENABLE_WEBTTY=true \
+  -e AI_WINDOW_0_TYPE=qwen \
+  -e AI_WINDOW_0_API_KEY=sk-xxx \
+  -e AI_WINDOW_0_MODEL=qwen-max \
+  -e AI_WINDOW_0_BASE_URL=https://dashscope.aliyuncs.com/api/v1 \
+  -e AI_WINDOW_1_TYPE=claude \
+  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_1_MODEL=claude-3-5-sonnet-20241022 \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
+```
+
+### 技術細節
+
+#### AI 工具安裝流程
+
+1. **容器啟動**: `init.sh` 執行 `/scripts/install-ai-tools.sh`
+2. **解析配置**: 讀取 `AI_WINDOW_*_TYPE` 環境變數
+3. **去重安裝**: 如果多個 windows 使用相同工具，只安裝一次
+4. **npm 安裝**: 使用 `npm install -g` 安裝對應套件
+5. **驗證**: 檢查命令是否可用
+
+#### tmux Window 管理
+
+- **監控腳本**: `ai-session-monitor.js` 負責建立和監控 windows
+- **動態建立**: 根據配置決定每個 window 的類型（AI CLI 或 bash shell）
+- **自動重啟**: 如果 AI 進程意外終止，監控器會自動重啟
+- **環境變數注入**: 每個 AI 工具會從對應的 `AI_WINDOW_*_API_KEY` 等變數讀取配置
+
+### 故障排除
+
+#### AI 工具未安裝
+
+檢查容器日誌：
+```bash
+docker logs <container-id> | grep "安裝 AI 工具"
+```
+
+#### AI CLI 未啟動
+
+查看監控器日誌：
+```bash
+docker exec <container-id> cat /home/flexy/ai-monitor.log
+```
+
+#### API Key 未生效
+
+確認環境變數格式正確：
+```bash
+docker exec <container-id> env | grep AI_WINDOW
+```
 
 ## 通知機制
 
@@ -167,14 +337,234 @@ docker run -d --rm \
 2. 確保腳本有執行權限：`chmod +x init.sh`
 3. 重新建置映像並測試
 
+## Claude Code 配置持久化
+
+### 概述
+
+Flexy Sandbox 支援靈活的 Claude Code 配置管理，實現以下目標：
+- **持久化配置**: 容器重啟後配置保留
+- **多容器共享**: 多個 Flexy 容器使用相同配置
+- **專案特定配置**: 支援專案級配置覆蓋
+- **環境變數注入**: Kai 整合時動態生成配置
+
+### 配置文件位置
+
+**配置讀取優先級（從高到低）**:
+1. **專案級配置**: `/home/flexy/workspace/.claude/` (最高優先級)
+2. **使用者級配置**: `/home/flexy/.claude/` (預設)
+3. **環境變數生成**: 從 `CLAUDE_*` 環境變數動態生成
+
+### 配置文件
+
+#### CLAUDE.md
+Claude 行為和偏好設定文件，定義：
+- 輸出語言和風格
+- 編碼規範
+- 提交訊息格式
+- 通知設定
+
+**預設配置** (`claude-config/CLAUDE.md`):
+```markdown
+# Claude Code 設定檔案
+
+## 使用者介面
+1. 一律以繁體中文輸出
+
+## 通用原則
+1. 當你完成一個複雜或多步驟的任務時（auto-accept mode），請使用 /sendNotification 工具發送完成通知。
+2. 使用方式：/sendNotification --channel=line --message "任務完成: [具體完成的任務內容]"
+```
+
+#### .mcp.json
+MCP (Model Context Protocol) 伺服器配置，定義可用的工具和整合。
+
+**預設配置** (`claude-config/.mcp.json`):
+```json
+{
+  "mcp": {
+    "servers": {
+      "github": {
+        "type": "stdio",
+        "command": "gh",
+        "args": ["mcp", "server"],
+        "env": {"GITHUB_TOKEN": "${GITHUB_TOKEN}"}
+      },
+      "kai-notify": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["kai-notify", "--mcp"]
+      }
+    }
+  }
+}
+```
+
+### 配置初始化邏輯
+
+容器啟動時，`init.sh` 執行以下初始化流程：
+
+#### 1. CLAUDE.md 初始化
+```bash
+# 檢查是否存在使用者級 CLAUDE.md
+if [ ! -f /home/flexy/.claude/CLAUDE.md ]; then
+  # 優先從環境變數生成（Kai 模式）
+  if [ -n "$CLAUDE_LANGUAGE" ] || [ -n "$CLAUDE_NOTIFICATION_ENABLED" ]; then
+    # 從環境變數生成 CLAUDE.md
+  else
+    # 複製預設模板
+    cp /home/flexy/CLAUDE.md /home/flexy/.claude/CLAUDE.md
+  fi
+fi
+```
+
+**支援的環境變數**:
+- `CLAUDE_LANGUAGE`: 輸出語言（預設: 繁體中文）
+- `CLAUDE_NOTIFICATION_ENABLED`: 啟用通知（預設: true）
+- `CLAUDE_NOTIFICATION_CHANNEL`: 通知頻道（預設: line）
+
+#### 2. MCP 配置合併
+```bash
+# 如果使用者已有 MCP 配置，智慧合併
+if [ -f /home/flexy/.claude/.mcp.json ]; then
+  # 使用 merge-mcp-config.sh 合併預設 + 使用者配置
+  /scripts/merge-mcp-config.sh \
+    /home/flexy/default-mcp.json \
+    /home/flexy/.claude/.mcp.json \
+    /home/flexy/.claude/.mcp.json
+fi
+```
+
+**合併策略**:
+- 保留所有預設 MCP 伺服器（github, kai-notify）
+- 添加使用者自訂的額外伺服器
+- 同名伺服器以使用者配置為準
+- 使用 `jq` 工具進行 JSON 合併
+
+### 配置診斷輸出
+
+容器啟動時顯示配置狀態（`init.sh:146-191`）:
+
+```
+========================================
+  Claude Code 配置診斷
+========================================
+配置文件檢查：
+✓ 使用者級 CLAUDE.md: /home/flexy/.claude/CLAUDE.md
+  來源: 預設模板或使用者掛載
+✓ 使用者級 MCP 配置: /home/flexy/.claude/.mcp.json
+  已配置 MCP 伺服器：
+    - github
+    - kai-notify
+
+配置優先級：
+1. 專案級: /home/flexy/workspace/.claude/ (最高優先級)
+2. 使用者級: /home/flexy/.claude/ (預設)
+3. 環境變數: CLAUDE_* 變數 (用於動態生成)
+```
+
+### Volume 掛載方案
+
+#### 方案 A: 全域配置掛載
+```bash
+docker run -it --rm \
+  -v ~/.flexy-claude-config:/home/flexy/.claude \
+  flexy-dev-sandbox
+```
+適合個人使用，所有容器共享配置。
+
+#### 方案 B: 專案配置
+```bash
+# 在專案目錄建立 .claude/
+mkdir -p my-project/.claude
+docker run -it --rm \
+  -v $(pwd)/my-project:/home/flexy/workspace \
+  flexy-dev-sandbox
+```
+適合團隊協作，配置納入 Git 版本控制。
+
+#### 方案 C: 環境變數配置（Kai）
+```bash
+docker run -it --rm \
+  -e CLAUDE_LANGUAGE=zh_TW \
+  -e CLAUDE_NOTIFICATION_ENABLED=true \
+  flexy-dev-sandbox
+```
+適合自動化部署，無需預先建立配置文件。
+
+### Kai 整合範例
+
+Kai 後端在建立 Flexy 容器時可傳入環境變數：
+
+```javascript
+// kai-backend/src/services/flexyContainer.js
+const container = await docker.createContainer({
+  Env: [
+    `ANTHROPIC_AUTH_TOKEN=${apiKey}`,
+    `CLAUDE_LANGUAGE=zh_TW`,
+    `CLAUDE_NOTIFICATION_ENABLED=true`,
+    `CLAUDE_NOTIFICATION_CHANNEL=line`,
+    `KAI_PROJECT_ID=${projectId}`,
+  ],
+  // ... 其他配置
+});
+```
+
+容器啟動時會自動生成對應的 CLAUDE.md 配置。
+
+### 配置文件範例
+
+**專案級 `.claude/CLAUDE.md`**（團隊協作）:
+```markdown
+# 專案 Claude 配置
+
+## 使用者介面
+1. 一律以繁體中文輸出
+
+## 編碼規範
+1. 使用 TypeScript strict 模式
+2. 遵循 ESLint 配置
+3. 所有 API 必須包含 JSDoc 註解
+
+## 提交規範
+1. 提交訊息使用 Conventional Commits 格式
+2. 包含 JIRA ticket 編號
+```
+
+**專案級 `.claude/.mcp.json`**（擴充 MCP 伺服器）:
+```json
+{
+  "mcp": {
+    "servers": {
+      "project-database": {
+        "type": "stdio",
+        "command": "npx",
+        "args": ["@myorg/db-mcp-server"]
+      },
+      "custom-api": {
+        "type": "stdio",
+        "command": "node",
+        "args": ["./tools/api-mcp-server.js"]
+      }
+    }
+  }
+}
+```
+
+這些配置會與預設 MCP 伺服器合併，確保 github、kai-notify 仍可用。
+
 ## 容器內目錄結構
 
 - `/home/flexy` - 使用者家目錄
 - `/home/flexy/workspace` - 推薦的專案掛載點
 - `/home/flexy/.local/bin` - 使用者安裝的執行檔（npm global packages）
 - `/home/flexy/.local/lib/node_modules` - npm global 模組目錄
-- `/home/flexy/.mcp.json` - MCP 伺服器配置
-- `/home/flexy/.claude/CLAUDE.md` - Claude Code 全域配置（來自 claude-config/CLAUDE.md）
+- `/home/flexy/.claude/` - Claude Code 配置目錄（使用者級）
+  - `CLAUDE.md` - Claude 全域配置
+  - `.mcp.json` - MCP 伺服器配置
+- `/home/flexy/workspace/.claude/` - 專案級配置（優先級最高）
+- `/home/flexy/CLAUDE.md` - CLAUDE.md 配置模板（用於初始化）
+- `/home/flexy/default-mcp.json` - MCP 配置模板（用於初始化和合併）
+- `/scripts/merge-mcp-config.sh` - MCP 配置合併腳本
 
 ## WebTTY 模式詳細說明
 
@@ -269,7 +659,6 @@ docker run -it --rm \
 
 ### MCP 伺服器連線失敗
 - GitHub MCP: 確認 `GITHUB_TOKEN` 環境變數已設定
-- Docker MCP: 確認 Docker daemon 可存取（可能需要掛載 Docker socket）
 
 ### 權限問題
 容器內使用 `flexy` 使用者，確保掛載的目錄有適當權限。

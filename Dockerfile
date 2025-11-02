@@ -71,7 +71,9 @@ RUN mkdir -p /home/flexy/workspace
 COPY init.sh /usr/local/bin/init.sh
 COPY ai-session-monitor.js /usr/local/bin/ai-session-monitor.js
 COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
-RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh
+COPY scripts/merge-mcp-config.sh /scripts/merge-mcp-config.sh
+COPY scripts/install-ai-tools.sh /scripts/install-ai-tools.sh
+RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh /scripts/merge-mcp-config.sh /scripts/install-ai-tools.sh
 
 # Create Qwen and Claude configuration directories
 RUN mkdir -p /home/flexy/.qwen && \
@@ -81,24 +83,21 @@ RUN mkdir -p /home/flexy/.qwen && \
 # 切換到 flexy 使用者
 USER flexy
 
-# 建立用戶目錄結構並安裝全局包 (including Qwen, Gemini and cospec-ai support)
+# 建立用戶目錄結構並安裝基礎全局包 (AI 工具將在容器啟動時按需安裝)
 RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm config set prefix '/home/flexy/.local' && \
-    npm install -g @qwen-code/qwen-code@latest && \
-    npm install -g @anthropic-ai/claude-code && \
-    npm install -g @google/gemini-cli && \
     npm install -g cospec-ai kai-notify
 
-# 複製 Claude Code MCP 配置文件
-COPY claude-config/.mcp.json /home/flexy/.mcp.json
-
-# 配置 MCP 伺服器
-RUN /usr/local/bin/configure-mcp.sh
-
-# 複製 and setup default Qwen and Claude configuration files for initialization
+# 複製預設配置模板文件（用於 init.sh 初始化）
+# 統一使用 .claude/ 目錄，不再在建置時建立全域配置
 COPY qwen-config/settings.json /home/flexy/default-qwen-settings.json
 COPY claude-config/.mcp.json /home/flexy/default-mcp.json
 COPY claude-config/CLAUDE.md /home/flexy/CLAUDE.md
+
+# 安裝 jq 用於 JSON 合併（切換回 root 用戶安裝）
+USER root
+RUN apt-get update && apt-get install -y jq && rm -rf /var/lib/apt/lists/*
+USER flexy
 
 # 設定環境變數
 ENV HOME=/home/flexy
@@ -111,18 +110,51 @@ ENV NODE_PATH=/home/flexy/.local/lib/node_modules
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# 設定 Qwen 環境變數（可在執行時覆蓋）
+# 動態 AI 工具配置環境變數（前 5 個 windows 可自訂）
+# 格式: AI_WINDOW_<N>_TYPE=<qwen|claude|gemini|codex>
+# 對應環境變數: AI_WINDOW_<N>_API_KEY, AI_WINDOW_<N>_MODEL, AI_WINDOW_<N>_BASE_URL
+ENV AI_WINDOW_0_TYPE=
+ENV AI_WINDOW_0_API_KEY=
+ENV AI_WINDOW_0_MODEL=
+ENV AI_WINDOW_0_BASE_URL=
+
+ENV AI_WINDOW_1_TYPE=
+ENV AI_WINDOW_1_API_KEY=
+ENV AI_WINDOW_1_MODEL=
+ENV AI_WINDOW_1_BASE_URL=
+
+ENV AI_WINDOW_2_TYPE=
+ENV AI_WINDOW_2_API_KEY=
+ENV AI_WINDOW_2_MODEL=
+ENV AI_WINDOW_2_BASE_URL=
+
+ENV AI_WINDOW_3_TYPE=
+ENV AI_WINDOW_3_API_KEY=
+ENV AI_WINDOW_3_MODEL=
+ENV AI_WINDOW_3_BASE_URL=
+
+ENV AI_WINDOW_4_TYPE=
+ENV AI_WINDOW_4_API_KEY=
+ENV AI_WINDOW_4_MODEL=
+ENV AI_WINDOW_4_BASE_URL=
+
+# 舊版 AI 工具環境變數（保留供其他用途）
+# 注意：這些變數不再用於 AI 工具自動配置
+# 請使用 AI_WINDOW_* 系列變數來配置 AI 工具
 ENV QWEN_API_KEY=
 ENV QWEN_BASE_URL=
 ENV QWEN_MODEL=
 
-# 設定 Claude Code 環境變數（可在執行時覆蓋）
 ENV ANTHROPIC_AUTH_TOKEN=
 ENV ANTHROPIC_BASE_URL=
 ENV ANTHROPIC_MODEL=
 ENV ANTHROPIC_SMALL_FAST_MODEL=
 
-# 設定 Gemini 環境變數（可在執行時覆蓋）
+# Claude Code 配置生成相關環境變數（用於 Kai 整合，仍然有效）
+ENV CLAUDE_LANGUAGE=
+ENV CLAUDE_NOTIFICATION_ENABLED=
+ENV CLAUDE_NOTIFICATION_CHANNEL=
+
 ENV GEMINI_API_KEY=
 ENV GEMINI_BASE_URL=
 ENV GEMINI_MODEL=
