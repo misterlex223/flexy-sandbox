@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install ttyd and tmux
 # ttyd: for sharing the terminal over the web
 # tmux: for creating a persistent, shareable session
+# Note: We install ttyd from GitHub releases to get the latest version with IME fixes
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -18,11 +19,16 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     sudo \
-    ttyd \
     tmux \
     locales \
     openssh-server \
     && rm -rf /var/lib/apt/lists/*
+
+# Install latest ttyd from GitHub releases (fixes Chinese IME duplication issues)
+# Using version 1.7.7 or later which includes xterm.js fixes for IME composition
+RUN TTYD_VERSION=1.7.7 && \
+    wget -q https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64 -O /usr/local/bin/ttyd && \
+    chmod +x /usr/local/bin/ttyd
 
 # 生成中文 locale 支援
 RUN locale-gen zh_TW.UTF-8 && update-locale LANG=zh_TW.UTF-8
@@ -93,6 +99,9 @@ RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
 COPY qwen-config/settings.json /home/flexy/default-qwen-settings.json
 COPY claude-config/.mcp.json /home/flexy/default-mcp.json
 COPY claude-config/CLAUDE.md /home/flexy/CLAUDE.md
+
+# 複製優化的 tmux 配置（改善中文輸入處理）
+COPY sandbox-config/.tmux.conf /home/flexy/.tmux.conf
 
 # 安裝 jq 用於 JSON 合併（切換回 root 用戶安裝）
 USER root

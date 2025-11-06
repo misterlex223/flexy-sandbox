@@ -492,6 +492,56 @@ claude "使用 sendNotification 工具發送'任務完成'通知"
 kai-notify --cli notify --message "Hello World" --title "Notification"
 ```
 
+## 中文輸入修復 (IME Fix)
+
+### 問題說明
+
+如果您在 WebTTY 模式下遇到中文字重複的問題（例如：輸入「測試」卻顯示「測試測試」），這是由於 xterm.js 的 IME（Input Method Editor）處理問題所導致。
+
+### 解決方案
+
+本專案已實施以下修復：
+
+1. **升級 ttyd 至最新版本** (v1.7.7)
+   - 包含 xterm.js IME 組合事件修復
+   - 支援搜狗輸入法、QQ拼音等中文輸入法
+
+2. **優化 tmux 配置**
+   - 減少按鍵延遲 (`escape-time 0`)
+   - 正確處理 bracketed paste mode
+   - 強制 UTF-8 編碼
+
+3. **ttyd 啟動參數優化**
+   - 設定終端類型為 `xterm-256color`
+   - 確保 UTF-8 locale 支援
+
+### 測試與驗證
+
+重新建置映像後測試中文輸入：
+
+```bash
+# 建置最新映像
+docker build -t flexy-dev-sandbox:latest .
+
+# 啟動 WebTTY 模式
+docker run -d --rm -p 9681:9681 -e ENABLE_WEBTTY=true flexy-dev-sandbox:latest
+
+# 在瀏覽器開啟 http://localhost:9681
+# 測試中文輸入：測試、你好世界
+```
+
+### 替代方案
+
+如果問題仍然存在，可以：
+
+1. **嘗試不同瀏覽器**: Chrome/Chromium（推薦） > Firefox > Edge
+2. **切換輸入法**: Microsoft Pinyin、Google Input Tools
+3. **使用 SSH 模式**: `ssh -p 2222 flexy@localhost`（密碼：dockerSandbox）
+
+### 詳細文件
+
+完整的故障排除指南請參考：[docs/IME-FIX.md](docs/IME-FIX.md)
+
 ## 自訂映像
 
 您可以修改 Dockerfile 來添加更多工具或變更設定：

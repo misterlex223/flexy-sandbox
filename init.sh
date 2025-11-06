@@ -271,7 +271,9 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
 
   # Start ttyd with the tmux session
   # The JavaScript monitor handles all session management
-  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 tmux new -A -s shared_session
+  # -W flag allows write access
+  # -t flag sets terminal type to xterm-256color for better compatibility
+  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W -t "xterm-256color" tmux new -A -s shared_session
 else
   # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行
   cd "$WORKING_DIRECTORY" || {
