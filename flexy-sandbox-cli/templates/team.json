@@ -1,0 +1,39 @@
+{
+  "name": "團隊協作環境",
+  "description": "WebTTY + Markdown 編輯器 + Git 整合，適合團隊協作開發",
+  "config": {
+    "enableWebtty": true,
+    "cospecPort": 9280,
+    "webttyPort": 9681,
+    "aiWindows": [
+      {
+        "window": 0,
+        "type": "claude",
+        "apiKey": "",
+        "model": "claude-3-5-sonnet-20241022",
+        "baseUrl": ""
+      }
+    ],
+    "volumes": [
+      {
+        "host": "$(pwd)",
+        "container": "/home/flexy/workspace"
+      },
+      {
+        "host": "~/.gitconfig",
+        "container": "/home/flexy/.gitconfig",
+        "readOnly": true
+      },
+      {
+        "host": "~/.ssh",
+        "container": "/home/flexy/.ssh",
+        "readOnly": true
+      }
+    ],
+    "environment": {
+      "CLAUDE_LANGUAGE": "繁體中文",
+      "CLAUDE_NOTIFICATION_ENABLED": "true",
+      "GITHUB_TOKEN": ""
+    }
+  }
+}

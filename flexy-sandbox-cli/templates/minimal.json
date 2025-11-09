@@ -1,0 +1,17 @@
+{
+  "name": "最小配置",
+  "description": "只有基本功能，不啟用 AI 工具和 WebTTY",
+  "config": {
+    "enableWebtty": false,
+    "cospecPort": 9280,
+    "webttyPort": 9681,
+    "aiWindows": [],
+    "volumes": [
+      {
+        "host": "$(pwd)",
+        "container": "/home/flexy/workspace"
+      }
+    ],
+    "environment": {}
+  }
+}

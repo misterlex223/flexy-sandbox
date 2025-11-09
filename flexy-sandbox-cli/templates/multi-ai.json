@@ -1,0 +1,49 @@
+{
+  "name": "多 AI 測試環境",
+  "description": "同時運行 3-4 種 AI 工具，適合比較測試和評估",
+  "config": {
+    "enableWebtty": true,
+    "cospecPort": 9280,
+    "webttyPort": 9681,
+    "aiWindows": [
+      {
+        "window": 0,
+        "type": "qwen",
+        "apiKey": "",
+        "model": "qwen-max",
+        "baseUrl": ""
+      },
+      {
+        "window": 1,
+        "type": "claude",
+        "apiKey": "",
+        "model": "claude-3-5-sonnet-20241022",
+        "baseUrl": ""
+      },
+      {
+        "window": 2,
+        "type": "gemini",
+        "apiKey": "",
+        "model": "",
+        "baseUrl": ""
+      },
+      {
+        "window": 3,
+        "type": "codex",
+        "apiKey": "",
+        "model": "",
+        "baseUrl": ""
+      }
+    ],
+    "volumes": [
+      {
+        "host": "$(pwd)",
+        "container": "/home/flexy/workspace"
+      }
+    ],
+    "environment": {
+      "CLAUDE_LANGUAGE": "繁體中文",
+      "CLAUDE_NOTIFICATION_ENABLED": "true"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "開發環境",
+  "description": "單一 AI 工具 + WebTTY + CoSpec Markdown 編輯器，適合個人開發",
+  "config": {
+    "enableWebtty": true,
+    "cospecPort": 9280,
+    "webttyPort": 9681,
+    "aiWindows": [
+      {
+        "window": 0,
+        "type": "claude",
+        "apiKey": "",
+        "model": "claude-3-5-sonnet-20241022",
+        "baseUrl": ""
+      }
+    ],
+    "volumes": [
+      {
+        "host": "$(pwd)",
+        "container": "/home/flexy/workspace"
+      }
+    ],
+    "environment": {
+      "CLAUDE_LANGUAGE": "繁體中文",
+      "CLAUDE_NOTIFICATION_ENABLED": "true",
+      "CLAUDE_NOTIFICATION_CHANNEL": "line"
+    }
+  }
+}
