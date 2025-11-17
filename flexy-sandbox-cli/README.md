@@ -239,7 +239,7 @@ flexy-sandbox shell my-dev
   "webttyPort": 9681,
   "aiWindows": [
     {
-      "window": 0,
+      "window": 1,
       "type": "claude",
       "apiKey": "sk-ant-xxx",
       "model": "claude-3-5-sonnet-20241022",

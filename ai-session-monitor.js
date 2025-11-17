@@ -12,7 +12,7 @@ console.log(`Environment variables: ENABLE_PERSISTENT_AI_SESSIONS=${ENABLE_PERSI
 
 const SESSION_NAME = 'shared_session';
 const MONITOR_INTERVAL = 5000; // Check every 5 seconds
-const MAX_WINDOWS = 5; // Windows 0-4 are configurable, window 5 is user terminal
+const MAX_WINDOWS = 5; // Windows 1-5 are configurable, window 0 is user terminal
 
 // AI 工具命令映射
 const AI_COMMANDS = {
@@ -48,7 +48,7 @@ const AI_ENV_MAPPINGS = {
 
 /**
  * 從環境變數解析單一 window 配置
- * @param {number} windowIndex - Window 索引 (0-4)
+ * @param {number} windowIndex - Window 索引 (1-5)
  * @returns {object|null} - 配置物件或 null
  */
 function getWindowConfig(windowIndex) {
@@ -75,7 +75,7 @@ function getWindowConfig(windowIndex) {
  */
 function getAllWindowConfigs() {
     const configs = [];
-    for (let i = 0; i < MAX_WINDOWS; i++) {
+    for (let i = 1; i <= MAX_WINDOWS; i++) {
         const config = getWindowConfig(i);
         configs.push(config);
     }
@@ -120,7 +120,7 @@ async function initializeSession() {
                 const windowConfigs = getAllWindowConfigs();
                 let firstWindowCreated = false;
 
-                // 建立 windows（0-4）
+                // 建立 windows（1-5）
                 for (let i = 0; i < MAX_WINDOWS; i++) {
                     const config = windowConfigs[i];
                     const windowName = config ? config.windowName : `shell_${i}`;
@@ -146,9 +146,9 @@ async function initializeSession() {
                     }
                 }
 
-                // 建立 window 5（使用者終端，固定）
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
-                console.log('Created window 5: user_session');
+                // 建立 window 0（使用者終端，固定）
+                await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
+                console.log('Created window 0: user_session');
 
             } else {
                 // 如果未啟用持久化 AI 會話，只建立使用者終端
@@ -267,7 +267,7 @@ async function ensureWindowsExist() {
     try {
         const windowConfigs = getAllWindowConfigs();
 
-        // 檢查並重建 windows 0-4
+        // 檢查並重建 windows 1-5
         for (let i = 0; i < MAX_WINDOWS; i++) {
             const config = windowConfigs[i];
             const windowName = config ? config.windowName : `shell_${i}`;
@@ -288,12 +288,12 @@ async function ensureWindowsExist() {
             }
         }
 
-        // 檢查使用者終端（window 5）
-        const userRunning = await checkWindowRunning(SESSION_NAME, 5);
+        // 檢查使用者終端（window 0）
+        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
         if (!userRunning) {
-            console.log('User window missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:5 2>/dev/null || true`);
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
+            console.log('User window (window 0) missing, creating...');
+            await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`);
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
         }
     } catch (error) {
         console.error('Error ensuring windows exist:', error);
@@ -351,13 +351,13 @@ async function monitorSessions() {
             }
         }
 
-        // 檢查使用者終端（window 5）
+        // 檢查使用者終端（window 0）
         console.log('Checking user session...');
-        const userRunning = await checkWindowRunning(SESSION_NAME, 5);
+        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
         console.log(`User window running: ${userRunning}`);
         if (!userRunning) {
-            console.log('User window is dead, restarting...');
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:5 -n user_session`);
+            console.log('User window (window 0) is dead, restarting...');
+            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
             console.log('User window restarted');
         }
 
@@ -382,7 +382,7 @@ async function startMonitoring() {
             console.log(`  Window ${i}: bash shell (未配置 AI 工具)`);
         }
     }
-    console.log('  Window 5: user terminal (固定)');
+    console.log('  Window 0: user terminal (固定)');
     console.log('');
 
     await initializeSession();

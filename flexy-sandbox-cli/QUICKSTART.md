@@ -199,12 +199,12 @@ flexy-sandbox config
 選擇 **多 AI 測試環境** 模板，填入所有 AI 工具的 API Keys。
 
 建立容器後，在 tmux 中：
-- Window 0: Qwen
-- Window 1: Claude
-- Window 2: Gemini
-- Window 3: Codex
-- Window 4: bash shell
-- Window 5: user terminal
+- Window 1: Qwen
+- Window 2: Claude
+- Window 3: Gemini
+- Window 4: Codex
+- Window 5: bash shell
+- Window 0: user terminal
 
 使用 `Ctrl+b 0-5` 切換不同的 window。
 

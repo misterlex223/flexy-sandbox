@@ -1,15 +1,16 @@
 {
   "name": "flexy-sandbox-cli",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Interactive CLI tool for managing Flexy Sandbox containers with full lifecycle management",
-  "main": "src/index.js",
   "bin": {
     "flexy-sandbox": "./bin/flexy-sandbox.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "./test-local.sh",
+    "test-local": "./test-local.sh",
     "dev": "node bin/flexy-sandbox.js",
-    "link": "npm link"
+    "link": "npm link",
+    "prepublishOnly": "./test-local.sh && node --check bin/flexy-sandbox.js && node --check src/commands/config.js && node --check src/commands/lifecycle.js && node --check src/commands/query.js && node --check src/lib/configManager.js && node --check src/lib/dockerManager.js && node --check src/lib/templates.js && node --check src/lib/validator.js && node --check src/utils/constants.js && node --check src/utils/logger.js"
   },
   "keywords": [
     "flexy",

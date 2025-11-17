@@ -58,11 +58,11 @@ flexy-sandbox/
 **重要環境變數**:
 
 **AI 工具動態配置**:
-- `AI_WINDOW_0_TYPE`: Window 0 的 AI 工具類型（qwen|claude|gemini|codex）
-- `AI_WINDOW_0_API_KEY`: Window 0 的 API Key
-- `AI_WINDOW_0_MODEL`: Window 0 的模型名稱（可選）
-- `AI_WINDOW_0_BASE_URL`: Window 0 的 API Base URL（可選）
-- `AI_WINDOW_1_TYPE` ~ `AI_WINDOW_4_TYPE`: Window 1-4 的配置（同上格式）
+- `AI_WINDOW_1_TYPE`: Window 1 的 AI 工具類型（qwen|claude|gemini|codex）
+- `AI_WINDOW_1_API_KEY`: Window 1 的 API Key
+- `AI_WINDOW_1_MODEL`: Window 1 的模型名稱（可選）
+- `AI_WINDOW_1_BASE_URL`: Window 1 的 API Base URL（可選）
+- `AI_WINDOW_2_TYPE` ~ `AI_WINDOW_5_TYPE`: Window 2-5 的配置（同上格式）
 
 **其他環境變數**:
 - `MARKDOWN_DIR`: CoSpec AI Markdown 文件目錄 (預設: 當前工作目錄，由 Docker WorkingDir 設定)
@@ -103,12 +103,12 @@ docker build -t flexy-dev-sandbox .
 **方式 1: 使用新版動態配置（推薦）**
 ```bash
 docker run -it --rm \
-  -e AI_WINDOW_0_TYPE=qwen \
-  -e AI_WINDOW_0_API_KEY=sk-xxx \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
-  -e AI_WINDOW_2_TYPE=gemini \
-  -e AI_WINDOW_2_API_KEY=AIza-xxx \
+  -e AI_WINDOW_1_TYPE=qwen \
+  -e AI_WINDOW_1_API_KEY=sk-xxx \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_3_TYPE=gemini \
+  -e AI_WINDOW_3_API_KEY=AIza-xxx \
   -e GITHUB_TOKEN=your_github_token \
   -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
@@ -116,21 +116,20 @@ docker run -it --rm \
 
 **方式 2: 自訂 Window 配置**
 ```bash
-# 例如：只在 Window 0 和 Window 2 配置 AI 工具
+# 例如：只在 Window 1 和 Window 2 配置 AI 工具
 docker run -it --rm \
-  -e AI_WINDOW_0_TYPE=claude \
-  -e AI_WINDOW_0_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_1_TYPE=claude \
+  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
   -e AI_WINDOW_2_TYPE=qwen \
   -e AI_WINDOW_2_API_KEY=sk-xxx \
   -e AI_WINDOW_2_MODEL=qwen-max \
   -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
-# Window 0: Claude
-# Window 1: bash shell (未配置)
+# Window 1: Claude
 # Window 2: Qwen
 # Window 3: bash shell (未配置)
 # Window 4: bash shell (未配置)
-# Window 5: user terminal (固定)
+# Window 0: user terminal (固定)
 ```
 
 **一次性執行 Claude Code 任務**
@@ -183,7 +182,7 @@ docker run -d --rm \
 
 ### 概述
 
-Flexy Sandbox 支援在容器啟動時動態安裝和配置 AI 工具，無需重新建置映像。前 5 個 tmux windows（0-4）可自由配置，Window 5 固定為使用者終端。
+Flexy Sandbox 支援在容器啟動時動態安裝和配置 AI 工具，無需重新建置映像。Window 0 固定為使用者終端，後 5 個 tmux windows（1-5）可自由配置。
 
 ### 支援的 AI 工具
 
@@ -205,7 +204,7 @@ AI_WINDOW_<N>_MODEL=<model-name>                # 模型名稱（可選）
 AI_WINDOW_<N>_BASE_URL=<api-base-url>           # API Base URL（可選）
 ```
 
-其中 `<N>` 可以是 0, 1, 2, 3, 4。
+其中 `<N>` 可以是 1, 2, 3, 4, 5。
 
 ### 使用範例
 
@@ -215,31 +214,10 @@ AI_WINDOW_<N>_BASE_URL=<api-base-url>           # API Base URL（可選）
 docker run -d --rm \
   -p 9681:9681 -p 9280:9280 \
   -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_0_TYPE=qwen \
-  -e AI_WINDOW_0_API_KEY=sk-xxx \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
-  -e AI_WINDOW_2_TYPE=gemini \
-  -e AI_WINDOW_2_API_KEY=AIza-xxx \
-  -v $(pwd):/home/flexy/workspace \
-  flexy-dev-sandbox
-```
-
-**結果**:
-- Window 0: Qwen CLI
-- Window 1: Claude Code
-- Window 2: Gemini CLI
-- Window 3: bash shell（未配置）
-- Window 4: bash shell（未配置）
-- Window 5: user terminal（固定）
-
-#### 範例 2: 只配置 Claude 和 Gemini
-
-```bash
-docker run -d --rm \
-  -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_1_TYPE=qwen \
+  -e AI_WINDOW_1_API_KEY=sk-xxx \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=sk-ant-xxx \
   -e AI_WINDOW_3_TYPE=gemini \
   -e AI_WINDOW_3_API_KEY=AIza-xxx \
   -v $(pwd):/home/flexy/workspace \
@@ -247,25 +225,46 @@ docker run -d --rm \
 ```
 
 **結果**:
-- Window 0: bash shell（未配置）
-- Window 1: Claude Code
-- Window 2: bash shell（未配置）
+- Window 1: Qwen CLI
+- Window 2: Claude Code
 - Window 3: Gemini CLI
 - Window 4: bash shell（未配置）
-- Window 5: user terminal（固定）
+- Window 5: bash shell（未配置）
+- Window 0: user terminal（固定）
+
+#### 範例 2: 只配置 Claude 和 Gemini
+
+```bash
+docker run -d --rm \
+  -e ENABLE_WEBTTY=true \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_4_TYPE=gemini \
+  -e AI_WINDOW_4_API_KEY=AIza-xxx \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
+```
+
+**結果**:
+- Window 1: bash shell（未配置）
+- Window 2: Claude Code
+- Window 3: bash shell（未配置）
+- Window 4: Gemini CLI
+- Window 5: bash shell（未配置）
+- Window 0: user terminal（固定）
 
 #### 範例 3: 使用自訂模型和 Base URL
 
 ```bash
 docker run -d --rm \
   -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_0_TYPE=qwen \
-  -e AI_WINDOW_0_API_KEY=sk-xxx \
-  -e AI_WINDOW_0_MODEL=qwen-max \
-  -e AI_WINDOW_0_BASE_URL=https://dashscope.aliyuncs.com/api/v1 \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=sk-ant-xxx \
-  -e AI_WINDOW_1_MODEL=claude-3-5-sonnet-20241022 \
+  -e AI_WINDOW_1_TYPE=qwen \
+  -e AI_WINDOW_1_API_KEY=sk-xxx \
+  -e AI_WINDOW_1_MODEL=qwen-max \
+  -e AI_WINDOW_1_BASE_URL=https://dashscope.aliyuncs.com/api/v1 \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=sk-ant-xxx \
+  -e AI_WINDOW_2_MODEL=claude-3-5-sonnet-20241022 \
   -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
 ```

@@ -161,7 +161,7 @@ flexy-sandbox-cli/
 {
   "enableWebtty": true,
   "aiWindows": [
-    { "window": 0, "type": "claude", "model": "claude-3-5-sonnet-20241022" }
+    { "window": 1, "type": "claude", "model": "claude-3-5-sonnet-20241022" }
   ],
   "volumes": [{ "host": "$(pwd)", "container": "/home/flexy/workspace" }]
 }
@@ -172,10 +172,10 @@ flexy-sandbox-cli/
 ```json
 {
   "aiWindows": [
-    { "window": 0, "type": "qwen", "model": "qwen-max" },
-    { "window": 1, "type": "claude", "model": "claude-3-5-sonnet-20241022" },
-    { "window": 2, "type": "gemini" },
-    { "window": 3, "type": "codex" }
+    { "window": 1, "type": "qwen", "model": "qwen-max" },
+    { "window": 2, "type": "claude", "model": "claude-3-5-sonnet-20241022" },
+    { "window": 3, "type": "gemini" },
+    { "window": 4, "type": "codex" }
   ]
 }
 ```

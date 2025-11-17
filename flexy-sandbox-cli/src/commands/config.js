@@ -3,7 +3,7 @@ const ConfigManager = require('../lib/configManager');
 const TemplateManager = require('../lib/templates');
 const ConfigValidator = require('../lib/validator');
 const Logger = require('../utils/logger');
-const { AI_TYPES, DEFAULT_PORTS } = require('../utils/constants');
+const { AI_TYPES, MAX_AI_WINDOWS, DEFAULT_PORTS } = require('../utils/constants');
 
 class ConfigCommand {
   constructor() {
@@ -230,7 +230,7 @@ class ConfigCommand {
     ]);
 
     const aiWindows = [];
-    for (let i = 0; i < aiWindowCount; i++) {
+    for (let i = 1; i <= aiWindowCount; i++) {
       Logger.info(`\n配置 AI Window ${i}:`);
 
       const windowConfig = await inquirer.prompt([
@@ -453,9 +453,9 @@ class ConfigCommand {
     }
 
     if (aiWindowAction === 'add') {
-      const nextWindow = config.aiWindows?.length || 0;
-      if (nextWindow >= 5) {
-        Logger.error('已達最大 AI Windows 數量 (5)');
+      const nextWindow = config.aiWindows?.length + 1 || 1;
+      if (nextWindow > MAX_AI_WINDOWS) {
+        Logger.error(`已達最大 AI Windows 數量 (${MAX_AI_WINDOWS})`);
         return config;
       }
 
@@ -513,7 +513,7 @@ class ConfigCommand {
           message: '選擇要編輯的 Window:',
           choices: config.aiWindows.map((window, index) => ({
             name: `Window ${window.window}: ${window.type}`,
-            value: index
+            value: index + 1
           }))
         }
       ]);
@@ -586,7 +586,7 @@ class ConfigCommand {
         config.aiWindows.splice(windowIndex, 1);
         // 重新編號 windows
         config.aiWindows.forEach((window, index) => {
-          window.window = index;
+          window.window = index + 1;
         });
         Logger.success('已刪除');
       }

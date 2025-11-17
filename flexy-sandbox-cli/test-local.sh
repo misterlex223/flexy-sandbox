@@ -81,7 +81,7 @@ fi
 # ========== 基本命令測試 ==========
 echo -e "\n${YELLOW}=== 基本命令測試 ===${NC}"
 
-test_output "版本命令" "flexy-sandbox --version" "1.0.3"
+test_output "版本命令" "flexy-sandbox --version" "1.0.4"
 test_command "幫助命令" "flexy-sandbox --help"
 test_command "config 幫助" "flexy-sandbox config --help"
 test_command "create 幫助" "flexy-sandbox create --help"

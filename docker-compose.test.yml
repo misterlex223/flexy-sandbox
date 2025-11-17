@@ -13,12 +13,12 @@ services:
       - "19280:9280"  # CoSpec AI
     environment:
       - ENABLE_WEBTTY=true
-      - AI_WINDOW_0_TYPE=qwen
-      - AI_WINDOW_0_API_KEY=test-qwen-key
-      - AI_WINDOW_1_TYPE=claude
-      - AI_WINDOW_1_API_KEY=test-claude-key
-      - AI_WINDOW_2_TYPE=gemini
-      - AI_WINDOW_2_API_KEY=test-gemini-key
+      - AI_WINDOW_1_TYPE=qwen
+      - AI_WINDOW_1_API_KEY=test-qwen-key
+      - AI_WINDOW_2_TYPE=claude
+      - AI_WINDOW_2_API_KEY=test-claude-key
+      - AI_WINDOW_3_TYPE=gemini
+      - AI_WINDOW_3_API_KEY=test-gemini-key
     volumes:
       - ./test-workspace:/home/flexy/workspace
     stdin_open: true

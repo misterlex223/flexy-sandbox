@@ -59,8 +59,8 @@ class ConfigValidator {
     const errors = [];
 
     // 驗證 window number
-    if (typeof window.window !== 'number' || window.window < 0 || window.window >= MAX_AI_WINDOWS) {
-      errors.push(`window 必須是 0-${MAX_AI_WINDOWS - 1} 之間的數字`);
+    if (typeof window.window !== 'number' || window.window < 1 || window.window > MAX_AI_WINDOWS) {
+      errors.push(`window 必須是 1-${MAX_AI_WINDOWS} 之間的數字`);
     }
 
     // 驗證 AI type

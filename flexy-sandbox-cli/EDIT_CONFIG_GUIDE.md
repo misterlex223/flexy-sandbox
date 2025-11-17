@@ -112,9 +112,9 @@ flexy-sandbox config
 目前有 2 個 AI Windows
 
 ? 選擇操作: 編輯 AI Window
-? 選擇要編輯的 Window: Window 0: claude
+? 選擇要編輯的 Window: Window 1: claude
 
-編輯 Window 0 (claude):
+編輯 Window 1 (claude):
 ? 選擇要編輯的欄位: API Key
 ? 新的 API Key: [hidden]
 
@@ -198,7 +198,7 @@ flexy-sandbox config
 
 - **環境變數名稱**：自動檢查格式（大寫字母、數字、底線）
 - **端口號**：確保是有效的端口範圍
-- **AI Window 數量**：最多 5 個（Window 0-4）
+- **AI Window 數量**：最多 5 個（Window 1-5）
 
 ### 🔒 安全輸入
 
@@ -251,7 +251,7 @@ A: 一次只能編輯一個配置，但可以在編輯過程中修改多個項�
 
 ### Q: 刪除 AI Window 後編號會改變嗎？
 
-A: 會。刪除後會自動重新編號，確保 Window 編號連續（0, 1, 2...）。
+A: 會。刪除後會自動重新編號，確保 Window 編號連續（1, 2, 3...）。
 
 ### Q: 環境變數名稱有什麼限制？
 
@@ -276,15 +276,15 @@ A: 可以！配置文件位於 `~/.flexy-sandbox/<name>.json`，你可以直接�
 
 **刪除前**：
 ```
-Window 0: claude
-Window 1: gemini
-Window 2: qwen
+Window 1: claude
+Window 2: gemini
+Window 3: qwen
 ```
 
 **刪除 Window 1 後**：
 ```
-Window 0: claude
-Window 1: qwen  ← 自動從 2 變為 1
+Window 1: claude
+Window 2: qwen  ← 自動從 3 變為 2
 ```
 
 ### 配置結構
@@ -298,7 +298,7 @@ Window 1: qwen  ← 自動從 2 變為 1
   "cospecPort": 9280,
   "aiWindows": [
     {
-      "window": 0,
+      "window": 1,
       "type": "claude",
       "apiKey": "sk-ant-xxx",
       "model": "claude-3-5-sonnet-20241022",

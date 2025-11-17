@@ -119,7 +119,7 @@ echo ""
 echo "========================================"
 echo "  AI 工具配置"
 echo "========================================"
-for i in {0..4}; do
+for i in {1..5}; do
   AI_TYPE_VAR="AI_WINDOW_${i}_TYPE"
   AI_TYPE="${!AI_TYPE_VAR}"
 
@@ -135,7 +135,7 @@ for i in {0..4}; do
     echo "Window $i: bash shell (未配置 AI 工具)"
   fi
 done
-echo "Window 5: user terminal (固定)"
+echo "Window 0: user terminal (固定)"
 echo ""
 echo "========================================"
 echo "  Claude Code 配置診斷"
@@ -258,7 +258,7 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "AI 會話監控器將根據環境變數建立 tmux 窗口"
   echo "配置的 windows 將顯示對應的 AI 工具"
   echo "未配置的 windows 將顯示 bash shell"
-  echo "Window 5 固定為使用者終端"
+  echo "Window 0 固定為使用者終端"
   node /usr/local/bin/ai-session-monitor.js > /home/flexy/ai-monitor.log 2>&1 &
   AI_MONITOR_PID=$!
   echo "AI 會話監控器已啟動 (PID: $AI_MONITOR_PID)"
@@ -273,7 +273,7 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   # The JavaScript monitor handles all session management
   # -W flag allows write access
   # -t flag sets terminal type to xterm-256color for better compatibility
-  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W -t "xterm-256color" tmux new -A -s shared_session
+  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W tmux new -A -s shared_session
 else
   # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行
   cd "$WORKING_DIRECTORY" || {

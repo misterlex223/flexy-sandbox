@@ -28,7 +28,7 @@ declare -A AI_COMMANDS=(
 # 收集需要安裝的 AI 工具（去重）
 declare -A TOOLS_TO_INSTALL
 
-for i in {0..4}; do
+for i in {1..5}; do
     AI_TYPE_VAR="AI_WINDOW_${i}_TYPE"
     AI_TYPE="${!AI_TYPE_VAR}"
 
@@ -41,7 +41,7 @@ done
 # 檢查是否有需要安裝的工具
 if [ ${#TOOLS_TO_INSTALL[@]} -eq 0 ]; then
     echo "未配置任何 AI 工具，跳過安裝"
-    echo "提示: 使用 AI_WINDOW_0_TYPE、AI_WINDOW_1_TYPE 等環境變數配置 AI 工具"
+    echo "提示: 使用 AI_WINDOW_1_TYPE、AI_WINDOW_2_TYPE 等環境變數配置 AI 工具"
     echo ""
     exit 0
 fi

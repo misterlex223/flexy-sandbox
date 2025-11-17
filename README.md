@@ -78,23 +78,23 @@ docker run -it --rm \
 # 同時使用 Qwen、Claude 和 Gemini
 docker run -it --rm \
   -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_0_TYPE=qwen \
-  -e AI_WINDOW_0_API_KEY=your_qwen_api_key \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=your_claude_api_key \
-  -e AI_WINDOW_2_TYPE=gemini \
-  -e AI_WINDOW_2_API_KEY=your_gemini_api_key \
+  -e AI_WINDOW_1_TYPE=qwen \
+  -e AI_WINDOW_1_API_KEY=your_qwen_api_key \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=your_claude_api_key \
+  -e AI_WINDOW_3_TYPE=gemini \
+  -e AI_WINDOW_3_API_KEY=your_gemini_api_key \
   -p 9681:9681 -p 9280:9280 \
   -v $(pwd):/home/flexy/workspace \
   flexy-dev-sandbox
 ```
 
 **tmux Windows 配置**:
-- Window 0: Qwen CLI
-- Window 1: Claude Code
-- Window 2: Gemini CLI
-- Window 3-4: bash shell (未配置)
-- Window 5: user terminal (固定)
+- Window 1: Qwen CLI
+- Window 2: Claude Code
+- Window 3: Gemini CLI
+- Window 4-5: bash shell (未配置)
+- Window 0: user terminal (固定)
 
 ### AI 工具配置說明
 
@@ -106,13 +106,13 @@ AI_WINDOW_<N>_MODEL=<model-name>                # 模型名稱（可選）
 AI_WINDOW_<N>_BASE_URL=<api-base-url>           # API Base URL（可選）
 ```
 
-其中 `<N>` 可以是 0, 1, 2, 3, 4（前 5 個 windows 可自訂）。
+其中 `<N>` 可以是 1, 2, 3, 4, 5（前 5 個 windows 可自訂）。
 
 **特點**:
 - ✅ AI 工具在容器啟動時按需安裝，無需預先建置
 - ✅ 靈活配置：可以只配置需要的 AI 工具
 - ✅ 未配置的 windows 自動顯示 bash shell
-- ✅ Window 5 固定為使用者終端
+- ✅ Window 0 固定為使用者終端
 
 ### 進階使用範例
 
@@ -122,20 +122,20 @@ AI_WINDOW_<N>_BASE_URL=<api-base-url>           # API Base URL（可選）
 # 只在特定 windows 配置 AI 工具
 docker run -it --rm \
   -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_1_TYPE=claude \
-  -e AI_WINDOW_1_API_KEY=your_key \
-  -e AI_WINDOW_3_TYPE=qwen \
-  -e AI_WINDOW_3_API_KEY=your_key \
+  -e AI_WINDOW_2_TYPE=claude \
+  -e AI_WINDOW_2_API_KEY=your_key \
+  -e AI_WINDOW_4_TYPE=qwen \
+  -e AI_WINDOW_4_API_KEY=your_key \
   -p 9681:9681 \
   flexy-dev-sandbox
 
 # Window 配置結果:
-# - Window 0: bash shell (未配置)
-# - Window 1: Claude Code
-# - Window 2: bash shell (未配置)
-# - Window 3: Qwen CLI
-# - Window 4: bash shell (未配置)
-# - Window 5: user terminal (固定)
+# - Window 1: bash shell (未配置)
+# - Window 2: Claude Code
+# - Window 3: bash shell (未配置)
+# - Window 4: Qwen CLI
+# - Window 5: bash shell (未配置)
+# - Window 0: user terminal (固定)
 ```
 
 #### 使用自訂模型
@@ -143,10 +143,10 @@ docker run -it --rm \
 ```bash
 docker run -it --rm \
   -e ENABLE_WEBTTY=true \
-  -e AI_WINDOW_0_TYPE=qwen \
-  -e AI_WINDOW_0_API_KEY=your_key \
-  -e AI_WINDOW_0_MODEL=qwen-max \
-  -e AI_WINDOW_0_BASE_URL=https://dashscope.aliyuncs.com/api/v1 \
+  -e AI_WINDOW_1_TYPE=qwen \
+  -e AI_WINDOW_1_API_KEY=your_key \
+  -e AI_WINDOW_1_MODEL=qwen-max \
+  -e AI_WINDOW_1_BASE_URL=https://dashscope.aliyuncs.com/api/v1 \
   -p 9681:9681 \
   flexy-dev-sandbox
 ```
@@ -180,7 +180,7 @@ docker run -it --rm -v $(pwd):/home/flexy/workspace flexy-dev-sandbox
 ## 環境變數
 
 ### AI 工具配置環境變數（新版）
-每個 window（0-4）可獨立配置：
+每個 window（1-5）可獨立配置：
 - `AI_WINDOW_<N>_TYPE` - AI 工具類型（qwen|claude|gemini|codex）
 - `AI_WINDOW_<N>_API_KEY` - API 金鑰
 - `AI_WINDOW_<N>_MODEL` - 模型名稱（可選）
