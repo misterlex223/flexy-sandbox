@@ -92,7 +92,7 @@ USER flexy
 # 建立用戶目錄結構並安裝基礎全局包 (AI 工具將在容器啟動時按需安裝)
 RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm config set prefix '/home/flexy/.local' && \
-    npm install -g cospec-ai kai-notify
+    npm install -g cospec-ai kai-notify pnpm
 
 # 複製預設配置模板文件（用於 init.sh 初始化）
 # 統一使用 .claude/ 目錄，不再在建置時建立全域配置
@@ -114,6 +114,9 @@ ENV PATH=$PATH:$HOME/.local/bin:/usr/local/bin
 
 # 設定 Node.js 環境變數
 ENV NODE_PATH=/home/flexy/.local/lib/node_modules
+
+# 設定 pnpm 為預設套件管理工具
+RUN pnpm config set prefix '/home/flexy/.local'
 
 # 設定 Python 環境變數
 ENV PYTHONDONTWRITEBYTECODE=1
