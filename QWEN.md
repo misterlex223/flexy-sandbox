@@ -364,7 +364,7 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 Kai 後端實現了完整的反向代理支援，路由優先級如下：
 
 1. **Shell 路由**: `/flexy/:id/shell/*` → 容器 port 9681
-2. **CoSpec AI API 路由**: `/flexy/:id/docs/api/*` → 容器 port 9281
+2. **CoSpec AI API 路由**: `/flexy/:id/docs/api/*` → 容器 port 9280 (API與前端整合)
 3. **CoSpec AI 前端路由**: `/flexy/:id/docs/*` → 容器 port 9280
 
 #### CoSpec AI 反向代理適配

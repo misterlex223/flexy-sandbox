@@ -173,7 +173,7 @@ ENV WORKING_DIRECTORY=/home/flexy/workspace
 
 # 設定 CoSpec AI 環境變數
 ENV COSPEC_PORT=9280
-ENV MARKDOWN_DIR=/home/flexy/workspace
+ENV MARKDOWN_DIR=
 
 # 設定持久化 AI 會話環境變數
 # ENABLE_PERSISTENT_AI_SESSIONS: 啟用多 tmux 會話功能 (預設: true)

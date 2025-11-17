@@ -121,8 +121,8 @@ async function initializeSession() {
                 let firstWindowCreated = false;
 
                 // 建立 windows（1-5）
-                for (let i = 0; i < MAX_WINDOWS; i++) {
-                    const config = windowConfigs[i];
+                for (let i = 1; i <= MAX_WINDOWS; i++) {
+                    const config = windowConfigs[i - 1];
                     const windowName = config ? config.windowName : `shell_${i}`;
 
                     if (!firstWindowCreated) {
@@ -268,8 +268,8 @@ async function ensureWindowsExist() {
         const windowConfigs = getAllWindowConfigs();
 
         // 檢查並重建 windows 1-5
-        for (let i = 0; i < MAX_WINDOWS; i++) {
-            const config = windowConfigs[i];
+        for (let i = 1; i <= MAX_WINDOWS; i++) {
+            const config = windowConfigs[i - 1];
             const windowName = config ? config.windowName : `shell_${i}`;
             const windowRunning = await checkWindowRunning(SESSION_NAME, i);
 
@@ -319,8 +319,8 @@ async function monitorSessions() {
 
         // 監控所有配置的 AI windows
         const windowConfigs = getAllWindowConfigs();
-        for (let i = 0; i < MAX_WINDOWS; i++) {
-            const config = windowConfigs[i];
+        for (let i = 1; i <= MAX_WINDOWS; i++) {
+            const config = windowConfigs[i - 1];
             if (!config) continue; // 跳過未配置的 window
 
             console.log(`Checking ${config.type} session (window ${i})...`);
@@ -374,8 +374,8 @@ async function startMonitoring() {
     // 顯示配置摘要
     console.log('Window configuration:');
     const windowConfigs = getAllWindowConfigs();
-    for (let i = 0; i < MAX_WINDOWS; i++) {
-        const config = windowConfigs[i];
+    for (let i = 1; i <= MAX_WINDOWS; i++) {
+        const config = windowConfigs[i - 1];
         if (config) {
             console.log(`  Window ${i}: ${config.type}`);
         } else {
