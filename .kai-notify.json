@@ -1,13 +1,13 @@
 {
   "channels": {
     "slack": {
-      "enabled": true,
+      "enabled": false,
       "botToken": "xoxb-your-token",
       "webhookUrl": "https://hooks.slack.com/services/your/webhook",
       "defaultChannel": "#general"
     },
     "line": {
-      "enabled": true,
+      "enabled": false,
       "channelAccessToken": "your-channel-access-token",
       "channelSecret": "your-channel-secret",
       "defaultUserId": "user-id-to-send-to"

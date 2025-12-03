@@ -95,10 +95,9 @@ RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm install -g cospec-ai kai-notify pnpm
 
 # 複製預設配置模板文件（用於 init.sh 初始化）
-# 統一使用 .claude/ 目錄，不再在建置時建立全域配置
-COPY qwen-config/settings.json /home/flexy/default-qwen-settings.json
-COPY claude-config/.mcp.json /home/flexy/default-mcp.json
-COPY claude-config/CLAUDE.md /home/flexy/CLAUDE.md
+# 統一使用 .default-qwen/ 和 .default-claude/ 目錄結構
+COPY qwen-config /tmp/flexy/.default-qwen
+COPY claude-config /tmp/flexy/.default-claude
 
 # 複製優化的 tmux 配置（改善中文輸入處理）
 COPY sandbox-config/.tmux.conf /home/flexy/.tmux.conf

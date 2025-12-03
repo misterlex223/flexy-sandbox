@@ -18,27 +18,28 @@ echo "========================================"
 }
 echo ""
 
-# Initialize Qwen and Claude config directories if they're empty/uninitialized
+# Initialize Qwen and Claude config directories if they're unmarked as initialized
 # This happens after mount points are established but before services start
-if [ ! "$(ls -A /home/flexy/.qwen 2>/dev/null)" ]; then
+if [ ! -f /home/flexy/.qwen/.__flexy_initialized__ ]; then
   echo "Initializing Qwen config directory with default settings..."
-  if [ -f /home/flexy/default-qwen-settings.json ]; then
-    cp /home/flexy/default-qwen-settings.json /home/flexy/.qwen/settings.json
-  else
-    echo '{}' > /home/flexy/.qwen/settings.json
+  if [ -d /tmp/flexy/.default-qwen ]; then
+    echo "Copying all default files to /home/flexy/.qwen"
+    cp -r /tmp/flexy/.default-qwen/* /home/flexy/.qwen/ 2>/dev/null || echo "No files in .default-qwen to copy"
   fi
+  # Create a marker file to indicate initialization has been performed
+  touch /home/flexy/.qwen/.__flexy_initialized__
 fi
 
 # 初始化 Claude Code 配置
-# 策略：檢查個別文件是否存在，支援部分配置掛載
+# 策略：使用標記文件判定是否已初始化
 echo "Initializing Claude Code configuration..."
 
 # 確保 .claude 目錄存在
 mkdir -p /home/flexy/.claude
 
-# 1. 處理 CLAUDE.md 配置
-if [ ! -f /home/flexy/.claude/CLAUDE.md ]; then
-  # 如果設定了環境變數，從環境變數生成配置（Kai 模式）
+# 使用標記文件判定是否已初始化
+if [ ! -f /home/flexy/.claude/.__flexy_initialized__ ]; then
+  # 檢查是否需要從環境變數生成配置（Kai 模式）
   if [ -n "$CLAUDE_LANGUAGE" ] || [ -n "$CLAUDE_NOTIFICATION_ENABLED" ]; then
     echo "從環境變數生成 CLAUDE.md 配置..."
     cat > /home/flexy/.claude/CLAUDE.md << EOF
@@ -57,49 +58,74 @@ EOF
 EOF
     fi
     echo "✓ 已從環境變數生成 CLAUDE.md"
-  # 否則複製預設配置模板
-  elif [ -f /home/flexy/CLAUDE.md ]; then
-    cp /home/flexy/CLAUDE.md /home/flexy/.claude/CLAUDE.md
-    echo "✓ 已複製預設 CLAUDE.md 配置"
   else
-    echo "⚠ 警告: CLAUDE.md 配置模板不存在"
+    # 複製所有預設配置模板
+    if [ -d /tmp/flexy/.default-claude ]; then
+      echo "Copying all default files to /home/flexy/.claude"
+      cp -r /tmp/flexy/.default-claude/* /home/flexy/.claude/ 2>/dev/null || echo "No files in .default-claude to copy"
+    fi
   fi
-else
-  echo "✓ 使用現有 CLAUDE.md 配置"
-fi
 
-# 2. 處理 MCP 配置（智慧合併）
-if [ ! -f /home/flexy/.claude/.mcp.json ]; then
-  # 使用者配置不存在，複製預設配置
-  if [ -f /home/flexy/default-mcp.json ]; then
-    cp /home/flexy/default-mcp.json /home/flexy/.claude/.mcp.json
-    echo "✓ 已複製預設 MCP 配置"
+  # 處理 MCP 配置（智慧合併）
+  if [ -f /home/flexy/.claude/.mcp.json ]; then
+    # 如果使用者配置存在，嘗試合併以確保預設伺服器可用
+    if [ -f /tmp/flexy/.default-claude/.mcp.json ] && [ -f /scripts/merge-mcp-config.sh ]; then
+      echo "正在合併 MCP 配置（預設 + 使用者）..."
+      # 備份使用者配置
+      cp /home/flexy/.claude/.mcp.json /home/flexy/.claude/.mcp.json.backup
+      # 執行合併
+      /scripts/merge-mcp-config.sh \
+        /tmp/flexy/.default-claude/.mcp.json \
+        /home/flexy/.claude/.mcp.json.backup \
+        /home/flexy/.claude/.mcp.json || {
+          echo "⚠ MCP 配置合併失敗，保留使用者配置"
+          mv /home/flexy/.claude/.mcp.json.backup /home/flexy/.claude/.mcp.json
+        }
+    elif [ -f /home/flexy/default-mcp.json ] && [ -f /scripts/merge-mcp-config.sh ]; then
+      echo "正在合併 MCP 配置（預設 + 使用者）..."
+      # 備份使用者配置
+      cp /home/flexy/.claude/.mcp.json /home/flexy/.claude/.mcp.json.backup
+      # 執行合併
+      /scripts/merge-mcp-config.sh \
+        /home/flexy/default-mcp.json \
+        /home/flexy/.claude/.mcp.json.backup \
+        /home/flexy/.claude/.mcp.json || {
+          echo "⚠ MCP 配置合併失敗，保留使用者配置"
+          mv /home/flexy/.claude/.mcp.json.backup /home/flexy/.claude/.mcp.json
+        }
+    else
+      echo "✓ 使用現有 MCP 配置（未合併）"
+    fi
   else
-    echo "⚠ 警告: MCP 配置模板不存在"
+    # 使用者配置不存在，複製預設配置
+    if [ -f /tmp/flexy/.default-claude/.mcp.json ]; then
+      cp /tmp/flexy/.default-claude/.mcp.json /home/flexy/.claude/.mcp.json
+      echo "✓ 已複製預設 MCP 配置"
+    elif [ -f /home/flexy/default-mcp.json ]; then
+      cp /home/flexy/default-mcp.json /home/flexy/.claude/.mcp.json
+      echo "✓ 已複製預設 MCP 配置"
+    else
+      echo "⚠ 警告: MCP 配置模板不存在"
+    fi
   fi
+
+  # 創建標記文件以指示初始化已完成
+  touch /home/flexy/.claude/.__flexy_initialized__
 else
-  # 使用者配置存在，嘗試合併以確保預設伺服器可用
-  if [ -f /home/flexy/default-mcp.json ] && [ -f /scripts/merge-mcp-config.sh ]; then
-    echo "正在合併 MCP 配置（預設 + 使用者）..."
-    # 備份使用者配置
-    cp /home/flexy/.claude/.mcp.json /home/flexy/.claude/.mcp.json.backup
-    # 執行合併
-    /scripts/merge-mcp-config.sh \
-      /home/flexy/default-mcp.json \
-      /home/flexy/.claude/.mcp.json.backup \
-      /home/flexy/.claude/.mcp.json || {
-        echo "⚠ MCP 配置合併失敗，保留使用者配置"
-        mv /home/flexy/.claude/.mcp.json.backup /home/flexy/.claude/.mcp.json
-      }
-  else
-    echo "✓ 使用現有 MCP 配置（未合併）"
-  fi
+  echo "✓ Claude 配置已初始化"
 fi
 
 # 設定 Git 初始配置（如果尚未設定）
 if [ ! -f /home/flexy/.gitconfig ]; then
-  git config --global user.email "flexy@example.com"
-  git config --global user.name "Flexy"
+  # 使用環境變數，如果未設定則使用默認值
+  GIT_USERNAME=${GIT_USERNAME:-"Flexy"}
+  GIT_EMAIL=${GIT_EMAIL:-"flexy@example.com"}
+
+  git config --global user.email "$GIT_EMAIL"
+  git config --global user.name "$GIT_USERNAME"
+  echo "Git 使用者資訊已設定: $GIT_USERNAME <$GIT_EMAIL>"
+else
+  echo "使用現有的 Git 配置"
 fi
 
 # AI 工具環境變數檢查已整合到下方的「AI 工具配置」診斷中
@@ -144,12 +170,21 @@ echo "========================================"
 # 檢查配置文件位置和來源
 echo "配置文件檢查："
 
+# Qwen 初始化狀態檢查
+if [ -f /home/flexy/.qwen/.__flexy_initialized__ ]; then
+  echo "✓ Qwen 配置已初始化"
+else
+  echo "⚠ Qwen 配置未初始化"
+fi
+
 # CLAUDE.md 檢查
 if [ -f /home/flexy/.claude/CLAUDE.md ]; then
   echo "✓ 使用者級 CLAUDE.md: /home/flexy/.claude/CLAUDE.md"
   # 檢查是否為環境變數生成
   if [ -n "$CLAUDE_LANGUAGE" ] || [ -n "$CLAUDE_NOTIFICATION_ENABLED" ]; then
     echo "  來源: 環境變數生成"
+  elif [ ! -f /home/flexy/.claude/.__flexy_initialized__ ]; then
+    echo "  來源: 初始化尚未完成"
   else
     echo "  來源: 預設模板或使用者掛載"
   fi
@@ -220,23 +255,32 @@ sudo /usr/sbin/sshd
 echo "SSH 服務已啟動"
 echo ""
 
-# 啟動 CoSpec AI Markdown Editor（始終在後台啟動）
-echo "========================================"
-echo "  啟動 CoSpec AI Markdown Editor"
-echo "========================================"
-echo "Markdown Editor 將在以下位置啟動："
-echo "- 服務: http://localhost:${COSPEC_PORT:-9280}"
-echo "- Markdown 目錄: ${MARKDOWN_DIR:-$WORKING_DIRECTORY}"
-echo ""
+# 啟動 CoSpec AI Markdown Editor（根據 DISABLE_COSPEC_AI 環境變數決定）
+# 當 DISABLE_COSPEC_AI 沒有定義或為 false 時啟動 cospec-ai；當 DISABLE_COSPEC_AI=true 時禁用
+if [ "${DISABLE_COSPEC_AI:-false}" != "true" ]; then
+  echo "========================================"
+  echo "  啟動 CoSpec AI Markdown Editor"
+  echo "========================================"
+  echo "Markdown Editor 將在以下位置啟動："
+  echo "- 服務: http://localhost:${COSPEC_PORT:-9280}"
+  echo "- Markdown 目錄: ${MARKDOWN_DIR:-$WORKING_DIRECTORY}"
+  echo ""
 
-# 確保 markdown 目錄存在（預設使用 working directory）
-mkdir -p ${MARKDOWN_DIR:-$WORKING_DIRECTORY}
+  # 確保 markdown 目錄存在（預設使用 working directory）
+  mkdir -p ${MARKDOWN_DIR:-$WORKING_DIRECTORY}
 
-# 在後台啟動 CoSpec AI unified server
-npx cospec-ai --port ${COSPEC_PORT:-9280} --markdown-dir ${MARKDOWN_DIR:-$WORKING_DIRECTORY} > /home/flexy/cospec.log 2>&1 &
-COSPEC_PID=$!
-echo "CoSpec AI 已啟動 (PID: $COSPEC_PID)"
-echo ""
+  # 在後台啟動 CoSpec AI unified server
+  npx cospec-ai --port ${COSPEC_PORT:-9280} --markdown-dir ${MARKDOWN_DIR:-$WORKING_DIRECTORY} > /home/flexy/cospec.log 2>&1 &
+  COSPEC_PID=$!
+  echo "CoSpec AI 已啟動 (PID: $COSPEC_PID)"
+  echo ""
+else
+  echo "========================================"
+  echo "  CoSpec AI Markdown Editor 已禁用"
+  echo "========================================"
+  echo "如需啟動 CoSpec AI，請設定 DISABLE_COSPEC_AI=false 或取消設定"
+  echo ""
+fi
 
 # 檢查是否啟用 WebTTY 模式
 # 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + tmux
@@ -263,8 +307,12 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   AI_MONITOR_PID=$!
   echo "AI 會話監控器已啟動 (PID: $AI_MONITOR_PID)"
 
-  # 處理停止信號，同時關閉 CoSpec AI、AI 監控器和 ttyd
-  trap "kill $COSPEC_PID $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+  # 處理停止信號，同時關閉 CoSpec AI（如果啟動）、AI 監控器和 ttyd
+  if [ "${DISABLE_COSPEC_AI:-false}" != "true" ]; then
+    trap "kill $COSPEC_PID $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+  else
+    trap "kill $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+  fi
 
   # Wait briefly for the monitor to initialize the session
   sleep 2
@@ -280,6 +328,12 @@ else
     echo "警告: 無法切換到工作目錄 $WORKING_DIRECTORY，使用當前目錄"
     cd /home/flexy/workspace
   }
-  trap "kill $COSPEC_PID; exit" SIGINT SIGTERM
+  # 預設模式：切換到工作目錄並啟動 bash shell
+  # 如果 CoSpec AI 已啟動，則需要在退出時關閉它
+  if [ "${DISABLE_COSPEC_AI:-false}" != "true" ]; then
+    trap "kill $COSPEC_PID; exit" SIGINT SIGTERM
+  else
+    trap "exit" SIGINT SIGTERM
+  fi
   exec "$@"
 fi
