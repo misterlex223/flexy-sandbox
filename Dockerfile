@@ -97,7 +97,7 @@ USER flexy
 # 建立用戶目錄結構並安裝基礎全局包 (AI 工具將在容器啟動時按需安裝)
 RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
     npm config set prefix '/home/flexy/.local' && \
-    npm install -g cospec-ai kai-notify pnpm
+    npm install -g cospec-ai kai-notify pnpm pyright typescript-language-server
 
 # 複製預設配置模板文件（用於 init.sh 初始化）
 # 統一使用 .default-qwen/ 和 .default-claude/ 目錄結構
