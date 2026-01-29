@@ -49,7 +49,7 @@ RUN useradd -ms /bin/bash flexy \
     && echo 'flexy:dockerSandbox' | chpasswd \
     && echo 'Defaults exempt_group=sudo' >> /etc/sudoers \
     && mkdir -p /etc/sudoers.d \
-    && echo 'flexy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip3, /usr/bin/pip, /usr/local/bin/npx, /usr/local/bin/npm' > /etc/sudoers.d/flexy-nopasswd \
+    && echo 'flexy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip3, /usr/bin/pip, /usr/local/bin/npx, /usr/local/bin/npm, /usr/local/bin/uv, /usr/local/bin/uvx' > /etc/sudoers.d/flexy-nopasswd \
     && chmod 440 /etc/sudoers.d/flexy-nopasswd
 
 # 安裝 Node.js (使用 NodeSource 倉庫以獲得最新版本)
@@ -61,6 +61,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - \
 RUN sudo apt-get update \
     && sudo apt-get install -y python3 python3-pip python3-venv \
     && rm -rf /var/lib/apt/lists/*
+
+# 安裝 uv (Python 套件管理器 - 用於執行 uvx 啟動 MCP servers 如 Serena)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/ \
+    && mv /root/.local/bin/uvx /usr/local/bin/
 
 # Git 已在基礎工具中安裝，現在安裝 GitHub CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
