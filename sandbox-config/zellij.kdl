@@ -1,10 +1,10 @@
 // Zellij configuration for Flexy Sandbox
-// Optimized for copy-on-select and multi-session AI tool management
+// Optimized for WebTTY/browser copy-paste
 
-// Copy mode configuration - solve the copy issue
-copy_command "clipboard"
-use_system_clipboard true
-copy_with_selection false  // Disable to let browser xterm.js handle clipboard
+// Copy mode configuration - use correct Zellij options
+// copy_on_select: Enable automatic copy when releasing mouse (Default: true)
+// Using OSC 52 escape sequence
+copy_on_select true
 
 // Tab/Window behavior
 tab_bar true
@@ -15,7 +15,7 @@ scroll_buffer_size 10000  // Default history limit
 theme "default"
 mode_normalization true
 
-// Mouse support - essential for copy-on-select
+// Mouse support - essential for browser copy-paste
 mouse_mode true
 
 // Session behavior
