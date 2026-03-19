@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Claude Code (`@anthropic-ai/claude-code`)
   - Gemini CLI (`@google/gemini-cli`)
   - OpenAI Codex (`@openai/codex`)
-- **ttyd + Zellij**: 終端分享和持久化會話（Zellij 取代 tmux，提供更好的複製體驗）
+- **Zellij 內建 Web Client**: 終端分享和持久化會話（支援 Token 認證）
 - **kai-notify**: LINE 通知整合 (npm package)
 - **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280)
 
@@ -160,7 +160,7 @@ docker run -d --rm \
   flexy-dev-sandbox
 
 # 在瀏覽器中開啟:
-# - http://localhost:9681 - Web Terminal (ttyd + Zellij)
+# - https://localhost:9681 - Zellij Web Client (需要 Token 登入)
 # - http://localhost:8280 - CoSpec AI Markdown Editor
 # 所有客戶端將共享同一個 Zellij 會話，適合協作開發
 ```
@@ -569,13 +569,14 @@ const container = await docker.createContainer({
 
 ### 啟用方式
 
-WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 中實作。
+WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用。
 
 ### 運作原理
 
-1. **ttyd**: 將終端透過 WebSocket 暴露為網頁服務
-2. **Zellij**: 提供持久化的終端會話，支援多客戶端連線（取代 tmux，更好的複製體驗）
+1. **Zellij Web Server**: Zellij 內建的 Web 伺服器，提供 HTTPS 訪問
+2. **Token 認證**: 安全的登入機制，Token 可持久化保存
 3. **共享會話**: 所有連線到同一容器的客戶端看到相同的終端畫面
+4. **Session Resurrection**: 會話可復活，即使容器重啟後仍可連線
 
 ### 使用場景
 
@@ -601,20 +602,25 @@ WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 
 
 ### 安全考量
 
-- WebTTY 預設**沒有認證**，任何能存取該埠的人都能連線
-- 建議僅在受信任的網路環境使用，或配合反向代理（如 nginx）加上認證
-- 生產環境應使用 ttyd 的 `-c` 參數設定認證憑證
+- Zellij Web Client 使用 **Token 認證**，預設自動生成並保存到 workspace
+- Token 透過環境變數 `WEB_SHELL_TOKEN` 可自訂
+- 建議僅在受信任的網路環境使用，或配合反向代理（如 nginx）加上額外認證
+- HTTPS 使用自簽憑證，瀏覽器會顯示警告（屬正常現象）
 
-### 進階配置
+### Token 管理
 
-可修改 init.sh 中的 ttyd/Zellij 啟動參數：
+Token 持久化保存在 `{workspace}/.zellij-data/`：
+- `login_token.txt` - Token 文字記錄
+- `tokens.db` - Zellij Token 數據庫
 
+使用自訂 Token：
 ```bash
-# 加入認證
-exec ttyd -p 9681 -W -c username:password zellij attach shared_session
-
-# 自訂標題
-exec ttyd -p 9681 -W -t "Flexy Dev Environment" zellij attach shared_session
+docker run -d --rm \
+  -p 9681:9681 \
+  -e ENABLE_WEBTTY=true \
+  -e WEB_SHELL_TOKEN=my-custom-token \
+  -v $(pwd):/home/flexy/workspace \
+  flexy-dev-sandbox
 ```
 
 ## 技術細節
@@ -635,7 +641,7 @@ exec ttyd -p 9681 -W -t "Flexy Dev Environment" zellij attach shared_session
 - 具有 sudo 權限（但預設不使用）
 
 ### 網路服務
-- Port 9681: ttyd 網頁終端（WebTTY 模式）
+- Port 9681: Zellij Web Server（HTTPS，WebTTY 模式）
 - Port 9280: CoSpec AI Markdown Editor 前端
 - 需要使用 `-p` 參數映射才能從主機存取
 
@@ -748,7 +754,7 @@ docker exec -it <container-name> cat /home/flexy/cospec-frontend.log
 ### 與 Kai 整合
 
 當 Flexy 容器被 Kai 管理時：
-- ttyd 終端可通過 Kai 代理在 `/flexy/:id/shell` 訪問
+- Zellij Web Client 可通過 Kai 代理在 `/flexy/:id/shell` 訪問
 - CoSpec AI 編輯器可通過 Kai 代理在 `/flexy/:id/docs` 訪問
 
 #### Kai 反向代理配置

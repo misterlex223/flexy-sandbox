@@ -15,7 +15,7 @@
 - Node.js (最新 LTS 版本)
 - Python 3
 - Git 和 GitHub CLI (gh)
-- ttyd + Zellij (網頁終端和會話管理，**copy-on-select 解決複製問題**)
+- **Zellij 內建 Web Client** (網頁終端和會話管理，支援 Token 認證)
 - CoSpec AI (Markdown 編輯器，port 9280)
 
 ## 目錄結構
@@ -68,7 +68,7 @@ docker run -it --rm \
   flexy-dev-sandbox
 
 # 然後在瀏覽器中開啟:
-# - http://localhost:9681 - Web Terminal (ttyd + Zellij)
+# - https://localhost:9681 - Zellij Web Client (需要 Token 登入)
 # - http://localhost:9280 - CoSpec AI Markdown Editor
 ```
 
@@ -188,6 +188,7 @@ docker run -it --rm -v $(pwd):/home/flexy/workspace flexy-dev-sandbox
 
 ### 其他環境變數
 - `ENABLE_WEBTTY` - 啟用 WebTTY 模式（預設: false）
+- `WEB_SHELL_TOKEN` - Zellij Web Client 登入 Token（可選，未設置則自動生成）
 - `AI_SESSION_MODE` - AI CLI 啟動模式（interactive|on-demand，預設: interactive）
 - `WORKING_DIRECTORY` - 容器的預設工作目錄（預設: /home/flexy/workspace）
 - `COSPEC_PORT` - CoSpec AI 前端端口（預設: 9280）
@@ -502,18 +503,18 @@ kai-notify --cli notify --message "Hello World" --title "Notification"
 
 本專案已實施以下修復：
 
-1. **遷移到 Zellij** (2026-03-19)
-   - Zellij 內建的 copy-on-select 功能直接解決複製問題
-   - 滑鼠選取文字即可複製，無需進入 copy mode
-   - 更直觀的使用者體驗
+1. **使用 Zellij 內建 Web Client** (v1.0 之後)
+   - Zellij 的 Web Client 原生支援滑鼠選取複製
+   - 滑鼠選取文字即可複製到剪貼簿
+   - 更直觀的使用者體驗，無需額外配置
 
-2. **升級 ttyd 至最新版本** (v1.7.7)
-   - 包含 xterm.js IME 組合事件修復
-   - 支援搜狗輸入法、QQ拼音等中文輸入法
+2. **HTTPS 支援**
+   - 內建自簽 SSL 憑證
+   - 支援 Token 認證，更安全
 
 3. **優化 Zellij 配置**
-   - 啟用滑鼠模式 (`mouse_mode "true"`)
-   - copy-on-select (`copy_with_selection "true"`)
+   - 啟用滑鼠模式 (`mouse_mode true`)
+   - copy-on-select (`copy_on_select true`)
    - 強制 UTF-8 編碼
 
 ### 測試與驗證
@@ -527,8 +528,9 @@ docker build -t flexy-dev-sandbox:latest .
 # 啟動 WebTTY 模式
 docker run -d --rm -p 9681:9681 -e ENABLE_WEBTTY=true flexy-dev-sandbox:latest
 
-# 在瀏覽器開啟 http://localhost:9681
-# 測試中文輸入：測試、你好世界
+# 在瀏覽器開啟 https://localhost:9681/shared_session
+# 輸入容器日誌中顯示的 Token 登入
+# 測試中文輸入和滑鼠選取複製
 ```
 
 ### 替代方案
