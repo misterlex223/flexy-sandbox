@@ -56,7 +56,7 @@ module.exports = {
   // 容器名稱前綴
   CONTAINER_PREFIX: 'flexy-',
 
-  // tmux window 數量
+  // Zellij tab 數量
   MAX_AI_WINDOWS: 5,
 
   // 配置模板

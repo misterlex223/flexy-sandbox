@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - Claude Code (`@anthropic-ai/claude-code`)
   - Gemini CLI (`@google/gemini-cli`)
   - OpenAI Codex (`@openai/codex`)
-- **ttyd + tmux**: 終端分享和持久化會話
+- **ttyd + Zellij**: 終端分享和持久化會話（Zellij 取代 tmux，提供更好的複製體驗）
 - **kai-notify**: LINE 通知整合 (npm package)
 - **CoSpec AI**: 整合的 Markdown 編輯器 (port 9280)
 
@@ -148,7 +148,7 @@ docker run -it --rm \
 
 **WebTTY 模式（網頁終端共享 + Markdown 編輯器）**
 ```bash
-# 啟動 WebTTY 模式，支援多客戶端共享同一 tmux 會話，並啟用 Markdown 編輯器
+# 啟動 WebTTY 模式，支援多客戶端共享同一 Zellij 會話，並啟用 Markdown 編輯器
 docker run -d --rm \
   -p 9681:9681 \
   -p 9280:9280 \
@@ -160,9 +160,9 @@ docker run -d --rm \
   flexy-dev-sandbox
 
 # 在瀏覽器中開啟:
-# - http://localhost:9681 - Web Terminal (ttyd + tmux)
+# - http://localhost:9681 - Web Terminal (ttyd + Zellij)
 # - http://localhost:8280 - CoSpec AI Markdown Editor
-# 所有客戶端將共享同一個 tmux 會話，適合協作開發
+# 所有客戶端將共享同一個 Zellij 會話，適合協作開發
 ```
 
 ### 容器內可用指令
@@ -182,7 +182,7 @@ docker run -d --rm \
 
 ### 概述
 
-Flexy Sandbox 支援在容器啟動時動態安裝和配置 AI 工具，無需重新建置映像。Window 0 固定為使用者終端，後 5 個 tmux windows（1-5）可自由配置。
+Flexy Sandbox 支援在容器啟動時動態安裝和配置 AI 工具，無需重新建置映像。Tab 0 固定為使用者終端，後 5 個 Zellij tabs（1-5）可自由配置。
 
 ### 支援的 AI 工具
 
@@ -279,10 +279,10 @@ docker run -d --rm \
 4. **npm 安裝**: 使用 `npm install -g` 安裝對應套件
 5. **驗證**: 檢查命令是否可用
 
-#### tmux Window 管理
+#### Zellij Tab 管理
 
-- **監控腳本**: `ai-session-monitor.js` 負責建立和監控 windows
-- **動態建立**: 根據配置決定每個 window 的類型（AI CLI 或 bash shell）
+- **監控腳本**: `ai-session-monitor.js` 負責建立和監控 tabs
+- **動態建立**: 根據配置決定每個 tab 的類型（AI CLI 或 bash shell）
 - **自動重啟**: 如果 AI 進程意外終止，監控器會自動重啟
 - **環境變數注入**: 每個 AI 工具會從對應的 `AI_WINDOW_*_API_KEY` 等變數讀取配置
 
@@ -574,7 +574,7 @@ WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 
 ### 運作原理
 
 1. **ttyd**: 將終端透過 WebSocket 暴露為網頁服務
-2. **tmux**: 提供持久化的終端會話，支援多客戶端連線
+2. **Zellij**: 提供持久化的終端會話，支援多客戶端連線（取代 tmux，更好的複製體驗）
 3. **共享會話**: 所有連線到同一容器的客戶端看到相同的終端畫面
 
 ### 使用場景
@@ -584,15 +584,20 @@ WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 
 - **教學示範**: 講師操作，學員即時觀看
 - **持久化會話**: 關閉瀏覽器後會話仍保留，重新開啟可繼續
 
-### tmux 快捷鍵
+### Zellij 快捷鍵
 
-在 WebTTY 模式下可使用 tmux 快捷鍵（預設 prefix: `Ctrl+b`）：
+在 WebTTY 模式下可使用 Zellij 快捷鍵（預設 mode 切換: `Ctrl+g`）：
 
-- `Ctrl+b %`: 垂直分割視窗
-- `Ctrl+b "`: 水平分割視窗
-- `Ctrl+b 方向鍵`: 切換分割區
-- `Ctrl+b d`: 離開會話（會話繼續執行）
-- `Ctrl+b [`: 進入複製模式（可捲動查看歷史）
+- `Ctrl+g` 然後按 `n`: 新增 tab
+- `Ctrl+g` 然後按 `d`: 離開會話（會話繼續執行）
+- `Ctrl+g` 然後按 `o`: 切換 pane 顯示
+- `Ctrl+g` 然後按 `p`: 切換到上一個 tab
+- `Ctrl+g` 然後按 `n`: 切換到下一個 tab
+- `Ctrl+g` 然後按 `Ctrl+g`: 回到正常模式
+
+**滑鼠操作**（已啟用）：
+- 直接拖曳選取文字即可複製（copy-on-select）
+- 滑鼠中鍵或 Shift+Insert 可貼上
 
 ### 安全考量
 
@@ -602,17 +607,14 @@ WebTTY 模式透過 `ENABLE_WEBTTY=true` 環境變數啟用，在 init.sh:66-78 
 
 ### 進階配置
 
-可修改 init.sh:78 的 ttyd 參數：
+可修改 init.sh 中的 ttyd/Zellij 啟動參數：
 
 ```bash
 # 加入認證
-exec ttyd -p 9681 -W -c username:password tmux new -A -s shared_session
-
-# 唯讀模式
-exec ttyd -p 9681 -W -R tmux attach -t shared_session
+exec ttyd -p 9681 -W -c username:password zellij attach shared_session
 
 # 自訂標題
-exec ttyd -p 9681 -W -t "Flexy Dev Environment" tmux new -A -s shared_session
+exec ttyd -p 9681 -W -t "Flexy Dev Environment" zellij attach shared_session
 ```
 
 ## 技術細節

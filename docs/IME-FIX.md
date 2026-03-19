@@ -1,5 +1,11 @@
 # 中文輸入重複問題修復指南
 
+> **⚠️ 重要通知 (2026-03-19)**
+>
+> Flexy Sandbox 已遷移到 **Zellij** 以取代 tmux。Zellij 內建的 copy-on-select 功能直接解決了 tmux 的複製文字不直覺問題。
+>
+> 本文件保留作為歷史記錄，說明如何修復 tmux 的 IME 輸入問題。新的 Flexy Sandbox 映像已預設使用 Zellij。
+
 ## 問題描述
 
 在 WebTTY 模式下使用中文輸入法（IME）時，輸入的中文字會重複顯示。例如：

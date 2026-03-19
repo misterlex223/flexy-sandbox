@@ -283,7 +283,7 @@ else
 fi
 
 # 檢查是否啟用 WebTTY 模式
-# 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + tmux
+# 如果設定了 ENABLE_WEBTTY=true 環境變數，則啟動 ttyd + Zellij
 if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "========================================"
   echo "  啟動 WebTTY 模式 (多會話支援)"
@@ -297,31 +297,35 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
     cd /home/flexy/workspace
   }
 
+  # 初始化 Zellij 配置目錄
+  mkdir -p /home/flexy/.config/zellij
+  # 確保配置目錄存在（配置文件已在 Dockerfile 中複製）
+
   # 啟動 AI 會話監控器 (handles session creation and management)
   echo "啟動 AI 會話監控器..."
-  echo "AI 會話監控器將根據環境變數建立 tmux 窗口"
-  echo "配置的 windows 將顯示對應的 AI 工具"
-  echo "未配置的 windows 將顯示 bash shell"
-  echo "Window 0 固定為使用者終端"
+  echo "AI 會話監控器將根據環境變數建立 Zellij tabs"
+  echo "配置的 tabs 將顯示對應的 AI 工具"
+  echo "未配置的 tabs 將顯示 bash shell"
+  echo "Tab 0 固定為使用者終端"
   node /usr/local/bin/ai-session-monitor.js > /home/flexy/ai-monitor.log 2>&1 &
   AI_MONITOR_PID=$!
   echo "AI 會話監控器已啟動 (PID: $AI_MONITOR_PID)"
 
   # 處理停止信號，同時關閉 CoSpec AI（如果啟動）、AI 監控器和 ttyd
   if [ "${DISABLE_COSPEC_AI:-false}" != "true" ]; then
-    trap "kill $COSPEC_PID $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+    trap "kill $COSPEC_PID $AI_MONITOR_PID 2>/dev/null; zellij delete-session -f shared_session 2>/dev/null; exit" SIGINT SIGTERM
   else
-    trap "kill $AI_MONITOR_PID 2>/dev/null; exit" SIGINT SIGTERM
+    trap "kill $AI_MONITOR_PID 2>/dev/null; zellij delete-session -f shared_session 2>/dev/null; exit" SIGINT SIGTERM
   fi
 
   # Wait briefly for the monitor to initialize the session
   sleep 2
 
-  # Start ttyd with the tmux session
-  # The JavaScript monitor handles all session management
+  # Start ttyd with the Zellij session
+  # Using -c flag to create session if it doesn't exist and attach to it
+  # This allows multiple web clients to connect to the same Zellij session
   # -W flag allows write access
-  # -t flag sets terminal type to xterm-256color for better compatibility
-  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W tmux new -A -s shared_session
+  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W zellij attach -c shared_session
 else
   # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行
   cd "$WORKING_DIRECTORY" || {

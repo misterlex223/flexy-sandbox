@@ -5,9 +5,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 更新套件列表並安裝基本工具
-# Install ttyd and tmux
+# Install ttyd and Zellij
 # ttyd: for sharing the terminal over the web
-# tmux: for creating a persistent, shareable session
+# Zellij: for creating a persistent, shareable session (tmux replacement)
 # Note: We install ttyd from GitHub releases to get the latest version with IME fixes
 RUN apt-get update && apt-get install -y \
     curl \
@@ -19,10 +19,18 @@ RUN apt-get update && apt-get install -y \
     vim \
     nano \
     sudo \
-    tmux \
     locales \
     openssh-server \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Zellij from GitHub releases
+RUN ZELLIJ_VERSION=$(curl -s https://api.github.com/repos/zellij-org/zellij/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/') && \
+    wget -q https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_VERSION}/zellij-x86_64-unknown-linux-musl.tar.gz -O zellij.tar.gz && \
+    tar -xzf zellij.tar.gz && \
+    mv zellij /usr/local/bin/ && \
+    chmod +x /usr/local/bin/zellij && \
+    rm zellij.tar.gz && \
+    echo "Zellij ${ZELLIJ_VERSION} installed"
 
 # Install latest ttyd from GitHub releases (fixes Chinese IME duplication issues)
 # Using version 1.7.7 or later which includes xterm.js fixes for IME composition
@@ -104,8 +112,10 @@ RUN mkdir -p /home/flexy/.local/bin /home/flexy/.local/lib/node_modules && \
 COPY qwen-config /tmp/flexy/.default-qwen
 COPY claude-config /tmp/flexy/.default-claude
 
-# 複製優化的 tmux 配置（改善中文輸入處理）
-COPY sandbox-config/.tmux.conf /home/flexy/.tmux.conf
+# 複製 Zellij 配置（改善複製體驗和多會話管理）
+RUN mkdir -p /home/flexy/.config/zellij && \
+    chown -R flexy:flexy /home/flexy/.config
+COPY --chown=flexy:flexy sandbox-config/zellij.kdl /home/flexy/.config/zellij/config.kdl
 
 # 安裝 jq 用於 JSON 合併（切換回 root 用戶安裝）
 USER root
@@ -120,7 +130,8 @@ ENV PATH=$PATH:$HOME/.local/bin:/usr/local/bin
 ENV NODE_PATH=/home/flexy/.local/lib/node_modules
 
 # 設定 pnpm 為預設套件管理工具
-RUN pnpm config set prefix '/home/flexy/.local'
+RUN mkdir -p /home/flexy/.config/pnpm && \
+    pnpm config set prefix '/home/flexy/.local'
 
 # 設定 Python 環境變數
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -183,7 +194,7 @@ ENV COSPEC_PORT=9280
 ENV MARKDOWN_DIR=
 
 # 設定持久化 AI 會話環境變數
-# ENABLE_PERSISTENT_AI_SESSIONS: 啟用多 tmux 會話功能 (預設: true)
+# ENABLE_PERSISTENT_AI_SESSIONS: 啟用多 Zellij 會話功能 (預設: true)
 # AI_SESSION_MODE: AI CLI 啟動模式 - interactive (預先啟動) 或 on-demand (按需啟動)
 # TASK_COMPLETION_TIMEOUT: 任務完成檢測超時時間 (毫秒)
 ENV ENABLE_PERSISTENT_AI_SESSIONS=true
@@ -191,8 +202,8 @@ ENV AI_SESSION_MODE=interactive
 ENV TASK_COMPLETION_TIMEOUT=120000
 
 # 設定 WebTTY 環境變數
-# TMUX_HISTORY_LIMIT: tmux 歷史記錄限制 (預設: 10000)
-ENV TMUX_HISTORY_LIMIT=10000
+# ZELLIJ_HISTORY_LIMIT: Zellij 歷史記錄限制 (預設: 10000)
+ENV ZELLIJ_HISTORY_LIMIT=10000
 
 # 設定工作目錄
 WORKDIR ${WORKING_DIRECTORY}
@@ -205,7 +216,7 @@ ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
 
 # Expose ttyd port and CoSpec AI ports
-  # Shared ttyd (tmux with multiple windows: user, claude, qwen)
+  # Shared ttyd (Zellij with multiple windows: user, claude, qwen)
 EXPOSE 9681
   # CoSpec AI unified server
 EXPOSE 9280

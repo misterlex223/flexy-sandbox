@@ -1,0 +1,26 @@
+// Flexy Sandbox multi-session layout for Zellij
+// Creates 6 panes (windows 0-5) for AI tools and user terminal
+//
+// Window 0: user terminal (fixed)
+// Window 1-5: AI tools (qwen, claude, gemini, codex, or bash)
+
+layout {
+    tab name="user_session" {
+        pane
+    }
+    tab name="shell_1" {
+        pane
+    }
+    tab name="shell_2" {
+        pane
+    }
+    tab name="shell_3" {
+        pane
+    }
+    tab name="shell_4" {
+        pane
+    }
+    tab name="shell_5" {
+        pane
+    }
+}

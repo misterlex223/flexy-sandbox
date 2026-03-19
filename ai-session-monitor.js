@@ -11,8 +11,8 @@ const AI_SESSION_MODE = process.env.AI_SESSION_MODE || 'interactive';
 console.log(`Environment variables: ENABLE_PERSISTENT_AI_SESSIONS=${ENABLE_PERSISTENT_AI_SESSIONS}, AI_SESSION_MODE=${AI_SESSION_MODE}`);
 
 const SESSION_NAME = 'shared_session';
-const MONITOR_INTERVAL = 5000; // Check every 5 seconds
-const MAX_WINDOWS = 5; // Windows 1-5 are configurable, window 0 is user terminal
+const MONITOR_INTERVAL = 10000; // Check every 10 seconds (less frequent)
+const MAX_TABS = 5; // Tabs 1-5 are configurable, tab 0 is user terminal
 
 // AI 工具命令映射
 const AI_COMMANDS = {
@@ -47,36 +47,36 @@ const AI_ENV_MAPPINGS = {
 };
 
 /**
- * 從環境變數解析單一 window 配置
- * @param {number} windowIndex - Window 索引 (1-5)
+ * 從環境變數解析單一 tab 配置
+ * @param {number} tabIndex - Tab 索引 (1-5)
  * @returns {object|null} - 配置物件或 null
  */
-function getWindowConfig(windowIndex) {
-    const type = process.env[`AI_WINDOW_${windowIndex}_TYPE`];
+function getTabConfig(tabIndex) {
+    const type = process.env[`AI_WINDOW_${tabIndex}_TYPE`];
     if (!type) return null;
 
-    const apiKey = process.env[`AI_WINDOW_${windowIndex}_API_KEY`];
-    const model = process.env[`AI_WINDOW_${windowIndex}_MODEL`];
-    const baseUrl = process.env[`AI_WINDOW_${windowIndex}_BASE_URL`];
+    const apiKey = process.env[`AI_WINDOW_${tabIndex}_API_KEY`];
+    const model = process.env[`AI_WINDOW_${tabIndex}_MODEL`];
+    const baseUrl = process.env[`AI_WINDOW_${tabIndex}_BASE_URL`];
 
     return {
         type: type.toLowerCase(),
         apiKey,
         model,
         baseUrl,
-        windowIndex,
-        windowName: `${type}_session`
+        tabIndex,
+        tabName: `${type}_session`
     };
 }
 
 /**
- * 取得所有配置的 windows
- * @returns {Array} - Window 配置陣列
+ * 取得所有配置的 tabs
+ * @returns {Array} - Tab 配置陣列
  */
-function getAllWindowConfigs() {
+function getAllTabConfigs() {
     const configs = [];
-    for (let i = 1; i <= MAX_WINDOWS; i++) {
-        const config = getWindowConfig(i);
+    for (let i = 1; i <= MAX_TABS; i++) {
+        const config = getTabConfig(i);
         configs.push(config);
     }
     return configs;
@@ -84,7 +84,7 @@ function getAllWindowConfigs() {
 
 /**
  * 生成 AI 工具啟動命令
- * @param {object} config - Window 配置
+ * @param {object} config - Tab 配置
  * @returns {string} - 啟動命令
  */
 function generateAICommand(config) {
@@ -108,290 +108,74 @@ function generateAICommand(config) {
     return cmd;
 }
 
-// Main initialization function - create tmux session and windows if they don't exist
-async function initializeSession() {
-    try {
-        // Check if session exists
-        const sessionExists = await checkSessionExists(SESSION_NAME);
-        if (!sessionExists) {
-            console.log(`Creating tmux session: ${SESSION_NAME}`);
+// Monitor loop - just log status periodically
+async function monitorSessions() {
+    console.log('=== AI Session Monitor Status ===');
 
-            if (ENABLE_PERSISTENT_AI_SESSIONS === 'true') {
-                const windowConfigs = getAllWindowConfigs();
-                let firstWindowCreated = false;
-
-                // 建立 windows（1-5）
-                for (let i = 1; i <= MAX_WINDOWS; i++) {
-                    const config = windowConfigs[i - 1];
-                    const windowName = config ? config.windowName : `shell_${i}`;
-
-                    if (!firstWindowCreated) {
-                        // 建立第一個 window（同時建立 session）
-                        await execAsync(`tmux new -d -s ${SESSION_NAME} -n ${windowName}`);
-                        firstWindowCreated = true;
-                        console.log(`Created session with window ${i}: ${windowName}`);
-                    } else {
-                        // 建立後續 windows
-                        await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${windowName}`);
-                        console.log(`Created window ${i}: ${windowName}`);
-                    }
-
-                    // 如果是 AI 工具且為 interactive 模式，啟動 AI CLI
-                    if (config && AI_SESSION_MODE === 'interactive') {
-                        const aiCmd = generateAICommand(config);
-                        if (aiCmd) {
-                            console.log(`Starting ${config.type} in window ${i}...`);
-                            await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
-                        }
-                    }
-                }
-
-                // 建立 window 0（使用者終端，固定）
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
-                console.log('Created window 0: user_session');
-
-            } else {
-                // 如果未啟用持久化 AI 會話，只建立使用者終端
-                await execAsync(`tmux new -d -s ${SESSION_NAME} -n user_session`);
-            }
-
-            console.log(`Session ${SESSION_NAME} initialized with all windows`);
-        } else {
-            console.log(`Session ${SESSION_NAME} already exists`);
-        }
-    } catch (error) {
-        console.error('Error initializing session:', error);
-    } finally {
-        // Always ensure the history limit is set for the session using environment variable
-        const tmuxHistoryLimit = process.env.TMUX_HISTORY_LIMIT || '10000';
-        await execAsync(`tmux set -g history-limit ${tmuxHistoryLimit}`);
-        await execAsync(`tmux set -g mouse on `);
-    }
-
-}
-
-function checkSessionExists(sessionName) {
-    return new Promise((resolve) => {
-        exec(`tmux has-session -t ${sessionName}`, (error) => {
-            resolve(!error);
-        });
-    });
-}
-
-function checkWindowRunning(sessionName, windowIndex) {
-    return new Promise((resolve) => {
-        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_dead}' 2>/dev/null | head -n 1`,
-        (error, stdout) => {
-            if (error) {
-                console.log(`Error checking window ${sessionName}:${windowIndex} status:`, error.message);
-                resolve(false);
-                return;
-            }
-            const paneDead = stdout.trim();
-            console.log(`Window ${sessionName}:${windowIndex} dead status: "${paneDead}"`);
-            resolve(paneDead !== '1');
-        });
-    });
-}
-
-function checkAIProcessRunning(sessionName, windowIndex, aiCmd) {
-    return new Promise((resolve) => {
-        exec(`tmux list-panes -t ${sessionName}:${windowIndex} -F '#{pane_current_command}' 2>/dev/null | head -n 1`,
-        (error, stdout) => {
-            if (error || !stdout.trim()) {
-                console.log(`Window ${windowIndex} process check failed or empty:`, error ? error.message : 'no output');
-                resolve(false);
-                return;
-            }
-            const currentCmd = stdout.trim().toLowerCase();
-            console.log(`Window ${windowIndex} current command: "${currentCmd}", looking for: "${aiCmd}"`);
-
-            // Check if the current command matches our AI command (case-insensitive)
-            // Also include more robust checks to handle cases where the command shows as 'node' or other parent processes
-            let isRunning = currentCmd.includes(aiCmd.toLowerCase());
-
-            // If basic check fails, do a more thorough check with ps to see if the AI process is running
-            if (!isRunning) {
-                exec(`ps aux | grep -v grep | grep ${aiCmd}`, (psError, psStdout) => {
-                    if (!psError && psStdout) {
-                        // Additional check: if we see the AI command in the process list,
-                        // it might be running as a child process even if tmux doesn't show it
-                        console.log(`Found ${aiCmd} in process list: ${psStdout.trim()}`);
-                        isRunning = true;
-                    }
-                    console.log(`Process ${aiCmd} running status after ps check: ${isRunning}`);
-                    resolve(isRunning);
-                });
-            } else {
-                console.log(`Process ${aiCmd} running status: ${isRunning}`);
-                resolve(isRunning);
-            }
-        });
-    });
-}
-
-// Track the last restart time to prevent rapid restarts
-const lastRestartTime = {};
-
-async function restartAIInWindow(windowIndex, aiCmd) {
-    // Prevent restarting too frequently
-    const currentTime = Date.now();
-    const key = `${windowIndex}-${aiCmd}`;
-    if (lastRestartTime[key] && (currentTime - lastRestartTime[key]) < 3000) {
-        console.log(`Skipping restart for ${aiCmd} in window ${windowIndex} - too frequent`);
+    if (ENABLE_PERSISTENT_AI_SESSIONS !== 'true') {
+        console.log('Persistent AI sessions not enabled');
         return;
     }
 
-    console.log(`Restarting ${aiCmd} in window ${windowIndex}`);
-
-    try {
-        // Clear the pane first to ensure a clean restart
-        await execAsync(`tmux send-keys -t ${SESSION_NAME}:${windowIndex} 'C-c' Enter`);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait for interruption
-        await execAsync(`tmux send-keys -t ${SESSION_NAME}:${windowIndex} 'clear' Enter`);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Wait for clear
-        // Send the AI command to the window
-        await execAsync(`tmux send-keys -t ${SESSION_NAME}:${windowIndex} '${aiCmd}' Enter`);
-        lastRestartTime[key] = currentTime;
-        console.log(`${aiCmd} restarted in window ${windowIndex}`);
-    } catch (error) {
-        console.error(`Error restarting ${aiCmd}:`, error);
+    // 顯示配置的 AI 工具
+    const tabConfigs = getAllTabConfigs();
+    console.log('Configured AI tools:');
+    for (let i = 1; i <= MAX_TABS; i++) {
+        const config = tabConfigs[i - 1];
+        if (config) {
+            console.log(`  Tab ${i}: ${config.type} (${AI_COMMANDS[config.type]})`);
+        }
     }
+
+    console.log('Note: Zellij session will be created automatically when you connect via WebTTY');
+    console.log('=====================================');
 }
 
-async function ensureWindowsExist() {
-    if (ENABLE_PERSISTENT_AI_SESSIONS !== 'true') {
-        return; // Only manage windows if persistent AI sessions are enabled
-    }
-
-    try {
-        const windowConfigs = getAllWindowConfigs();
-
-        // 檢查並重建 windows 1-5
-        for (let i = 1; i <= MAX_WINDOWS; i++) {
-            const config = windowConfigs[i - 1];
-            const windowName = config ? config.windowName : `shell_${i}`;
-            const windowRunning = await checkWindowRunning(SESSION_NAME, i);
-
-            if (!windowRunning) {
-                console.log(`Window ${i} missing, creating...`);
-                await execAsync(`tmux kill-window -t ${SESSION_NAME}:${i} 2>/dev/null || true`);
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${windowName}`);
-
-                // 如果是 AI 工具且為 interactive 模式，啟動 AI CLI
-                if (config && AI_SESSION_MODE === 'interactive') {
-                    const aiCmd = generateAICommand(config);
-                    if (aiCmd) {
-                        await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
-                    }
-                }
-            }
-        }
-
-        // 檢查使用者終端（window 0）
-        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
-        if (!userRunning) {
-            console.log('User window (window 0) missing, creating...');
-            await execAsync(`tmux kill-window -t ${SESSION_NAME}:0 2>/dev/null || true`);
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
-        }
-    } catch (error) {
-        console.error('Error ensuring windows exist:', error);
-    }
-}
-
-async function monitorSessions() {
-    console.log('=== Starting monitorSessions cycle ===');
-    try {
-        // If persistent AI sessions are not enabled, nothing to monitor
-        if (ENABLE_PERSISTENT_AI_SESSIONS !== 'true') {
-            console.log('Persistent AI sessions not enabled, skipping monitoring');
-            return;
-        }
-
-        if (!await checkSessionExists(SESSION_NAME)) {
-            console.log(`Session ${SESSION_NAME} does not exist, initializing...`);
-            await initializeSession();
-            return;
-        }
-
-        await ensureWindowsExist();
-
-        // 監控所有配置的 AI windows
-        const windowConfigs = getAllWindowConfigs();
-        for (let i = 1; i <= MAX_WINDOWS; i++) {
-            const config = windowConfigs[i - 1];
-            if (!config) continue; // 跳過未配置的 window
-
-            console.log(`Checking ${config.type} session (window ${i})...`);
-            const windowRunning = await checkWindowRunning(SESSION_NAME, i);
-            console.log(`Window ${i} running: ${windowRunning}`);
-
-            if (windowRunning) {
-                const aiCmd = AI_COMMANDS[config.type];
-                const processRunning = await checkAIProcessRunning(SESSION_NAME, i, aiCmd);
-                console.log(`${config.type} process running: ${processRunning}`);
-
-                if (!processRunning && AI_SESSION_MODE === 'interactive') {
-                    console.log(`${config.type} process not running, restarting...`);
-                    await restartAIInWindow(i, aiCmd);
-                } else {
-                    console.log(`${config.type} process is running as expected`);
-                }
-            } else if (AI_SESSION_MODE === 'interactive') {
-                // Window is dead, try to restart it
-                console.log(`Window ${i} (${config.type}) is dead, restarting...`);
-                await execAsync(`tmux kill-window -t ${SESSION_NAME}:${i} 2>/dev/null || true`);
-                await execAsync(`tmux new-window -t ${SESSION_NAME}:${i} -n ${config.windowName}`);
-                const aiCmd = generateAICommand(config);
-                if (aiCmd) {
-                    await execAsync(`tmux send-keys -t ${SESSION_NAME}:${i} '${aiCmd}' Enter`);
-                }
-                console.log(`Window ${i} (${config.type}) restarted`);
-            }
-        }
-
-        // 檢查使用者終端（window 0）
-        console.log('Checking user session...');
-        const userRunning = await checkWindowRunning(SESSION_NAME, 0);
-        console.log(`User window running: ${userRunning}`);
-        if (!userRunning) {
-            console.log('User window (window 0) is dead, restarting...');
-            await execAsync(`tmux new-window -t ${SESSION_NAME}:0 -n user_session`);
-            console.log('User window restarted');
-        }
-
-        console.log('=== Completed monitorSessions cycle ===');
-    } catch (error) {
-        console.error('Error in monitorSessions:', error);
-    }
-}
-
-// Initialize the session when the script starts
+// Initialize the monitor when the script starts
 async function startMonitoring() {
     console.log('AI session monitor starting...');
 
     // 顯示配置摘要
-    console.log('Window configuration:');
-    const windowConfigs = getAllWindowConfigs();
-    for (let i = 1; i <= MAX_WINDOWS; i++) {
-        const config = windowConfigs[i - 1];
+    console.log('Tab configuration:');
+    const tabConfigs = getAllTabConfigs();
+    for (let i = 1; i <= MAX_TABS; i++) {
+        const config = tabConfigs[i - 1];
         if (config) {
-            console.log(`  Window ${i}: ${config.type}`);
+            console.log(`  Tab ${i}: ${config.type}`);
         } else {
-            console.log(`  Window ${i}: bash shell (未配置 AI 工具)`);
+            console.log(`  Tab ${i}: bash shell (未配置 AI 工具)`);
         }
     }
-    console.log('  Window 0: user terminal (固定)');
+    console.log('  Tab 0: user terminal (固定)');
     console.log('');
 
-    await initializeSession();
+    console.log('Zellij 使用方式:');
+    console.log('- 使用 Ctrl+g 然後按 n 來新增 tab');
+    console.log('- 使用 Ctrl+g 然後按 d 來離開會話');
+    console.log('- 使用 Ctrl+g 然後按 [數字] 切換 tab');
+    console.log('- 使用 Ctrl+g 然後按 Ctrl+g 回到正常模式');
+    console.log('');
+    console.log('✓ Copy-on-select 已啟用：直接拖曳滑鼠選取文字即可複製！');
+    console.log('');
+
+    // Set environment variables for configured AI tools
+    for (let i = 1; i <= MAX_TABS; i++) {
+        const config = tabConfigs[i - 1];
+        if (config) {
+            generateAICommand(config);
+            console.log(`環境變數已設定: Tab ${i} (${config.type})`);
+        }
+    }
+
+    console.log('');
+    console.log('WebTTY is ready at http://localhost:9681');
+    console.log('Connect to start the Zellij session!');
 
     // Run the monitor at regular intervals
     setInterval(monitorSessions, MONITOR_INTERVAL);
 
-    // Also run immediately once after giving AI CLIs time to start up
-    setTimeout(monitorSessions, 3000); // Run first check after 3 seconds to allow AI tools to start
+    // Run once after a short delay
+    setTimeout(monitorSessions, 2000);
 }
 
 // Start the monitoring process

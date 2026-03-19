@@ -5,17 +5,17 @@
 ## ✨ 核心特性
 
 ### 🤖 動態 AI 工具配置
-- **前 5 個 tmux windows 完全可自訂**: 根據需求配置不同的 AI 工具
+- **前 5 個 Zellij tabs 完全可自訂**: 根據需求配置不同的 AI 工具
 - **支援 4 種 AI 工具**: Qwen Code、Claude Code、Gemini CLI、OpenAI Codex
 - **按需安裝**: AI 工具在容器啟動時動態安裝，無需重新建置映像
-- **靈活組合**: 可以只配置需要的 AI 工具，未配置的 windows 顯示 bash shell
+- **靈活組合**: 可以只配置需要的 AI 工具，未配置的 tabs 顯示 bash shell
 
 ### 🛠️ 完整開發工具鏈
 - Ubuntu 22.04 LTS
 - Node.js (最新 LTS 版本)
 - Python 3
 - Git 和 GitHub CLI (gh)
-- ttyd + tmux (網頁終端和會話管理)
+- ttyd + Zellij (網頁終端和會話管理，**copy-on-select 解決複製問題**)
 - CoSpec AI (Markdown 編輯器，port 9280)
 
 ## 目錄結構
@@ -68,7 +68,7 @@ docker run -it --rm \
   flexy-dev-sandbox
 
 # 然後在瀏覽器中開啟:
-# - http://localhost:9681 - Web Terminal (ttyd + tmux)
+# - http://localhost:9681 - Web Terminal (ttyd + Zellij)
 # - http://localhost:9280 - CoSpec AI Markdown Editor
 ```
 
@@ -89,12 +89,12 @@ docker run -it --rm \
   flexy-dev-sandbox
 ```
 
-**tmux Windows 配置**:
-- Window 1: Qwen CLI
-- Window 2: Claude Code
-- Window 3: Gemini CLI
-- Window 4-5: bash shell (未配置)
-- Window 0: user terminal (固定)
+**Zellij Tabs 配置**:
+- Tab 1: Qwen CLI
+- Tab 2: Claude Code
+- Tab 3: Gemini CLI
+- Tab 4-5: bash shell (未配置)
+- Tab 0: user terminal (固定)
 
 ### AI 工具配置說明
 
@@ -502,18 +502,19 @@ kai-notify --cli notify --message "Hello World" --title "Notification"
 
 本專案已實施以下修復：
 
-1. **升級 ttyd 至最新版本** (v1.7.7)
+1. **遷移到 Zellij** (2026-03-19)
+   - Zellij 內建的 copy-on-select 功能直接解決複製問題
+   - 滑鼠選取文字即可複製，無需進入 copy mode
+   - 更直觀的使用者體驗
+
+2. **升級 ttyd 至最新版本** (v1.7.7)
    - 包含 xterm.js IME 組合事件修復
    - 支援搜狗輸入法、QQ拼音等中文輸入法
 
-2. **優化 tmux 配置**
-   - 減少按鍵延遲 (`escape-time 0`)
-   - 正確處理 bracketed paste mode
+3. **優化 Zellij 配置**
+   - 啟用滑鼠模式 (`mouse_mode "true"`)
+   - copy-on-select (`copy_with_selection "true"`)
    - 強制 UTF-8 編碼
-
-3. **ttyd 啟動參數優化**
-   - 設定終端類型為 `xterm-256color`
-   - 確保 UTF-8 locale 支援
 
 ### 測試與驗證
 
