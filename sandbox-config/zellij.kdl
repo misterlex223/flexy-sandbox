@@ -4,7 +4,7 @@
 // Copy mode configuration - solve the copy issue
 copy_command "clipboard"
 use_system_clipboard true
-copy_with_selection true  // Enable copy-on-select (solves the issue!)
+copy_with_selection false  // Disable to let browser xterm.js handle clipboard
 
 // Tab/Window behavior
 tab_bar true
@@ -21,6 +21,7 @@ mouse_mode true
 // Session behavior
 on_force_close "quit"
 default_cwd "/home/flexy/workspace"
+default_shell "/bin/bash"  // Ensure bash is used instead of sh
 
 // Simplified UI for cleaner experience
 ui {
