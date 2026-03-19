@@ -321,11 +321,91 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   # Wait briefly for the monitor to initialize the session
   sleep 2
 
-  # Start ttyd with the Zellij session
-  # Using -c flag to create session if it doesn't exist and attach to it
-  # This allows multiple web clients to connect to the same Zellij session
-  # -W flag allows write access
-  LANG=zh_TW.UTF-8 LC_ALL=zh_TW.UTF-8 ttyd -p 9681 -W zellij attach -c shared_session
+  # Start Zellij with built-in web server
+  # Using 'zellij web' to start the web server directly (not attach)
+  # The web server is configured in zellij.kdl (web_server true, port 9681)
+
+  # Token database and file for persistence
+  # Save to workspace directory (mounted volume) for persistence across container restarts
+  TOKEN_DIR="$WORKING_DIRECTORY/.zellij-data"
+  TOKEN_FILE="$TOKEN_DIR/login_token.txt"
+  TOKEN_DB="$TOKEN_DIR/tokens.db"
+
+  # Create token directory if it doesn't exist
+  mkdir -p "$TOKEN_DIR"
+
+  # Copy persisted token database if exists
+  if [ -f "$TOKEN_DB" ]; then
+    echo "Restoring token database from workspace..."
+    cp "$TOKEN_DB" /home/flexy/.local/share/zellij/tokens.db
+    chown flexy:flexy /home/flexy/.local/share/zellij/tokens.db
+  fi
+
+  echo "========================================"
+  echo "  Zellij Web Client Starting..."
+  echo "========================================"
+  echo ""
+  echo "Web Client will be available at: https://localhost:9681"
+  echo "Session name: shared_session"
+  echo ""
+
+  # Determine token source: env var -> saved file -> auto-generate
+  if [ -n "$WEB_SHELL_TOKEN" ]; then
+    # Environment variable specified
+    # Note: For env var to work, we need to also create it in Zellij's database
+    # This requires special handling - for now, create a new token
+    echo "Note: WEB_SHELL_TOKEN environment variable is set"
+    echo "However, Zellij requires tokens to be in its internal database"
+    echo "Creating a new token..."
+    # Create token and extract it from output
+    TOKEN_OUTPUT=$(zellij web --create-token 2>&1)
+    SAVED_TOKEN=$(echo "$TOKEN_OUTPUT" | grep -oP 'token_\d+: \K[\w-]+' || echo "")
+    if [ -n "$SAVED_TOKEN" ]; then
+      echo "$SAVED_TOKEN" > "$TOKEN_FILE"
+      # Save token database for persistence
+      cp /home/flexy/.local/share/zellij/tokens.db "$TOKEN_DB"
+    fi
+  elif [ -f "$TOKEN_FILE" ] && [ -s "$TOKEN_FILE" ]; then
+    # Use saved token (database already restored above)
+    SAVED_TOKEN=$(cat "$TOKEN_FILE")
+    echo "Using persisted login token from $TOKEN_FILE..."
+  else
+    # Auto-generate new token
+    echo "No existing token found. Creating new login token..."
+    # Create token and extract it from output
+    TOKEN_OUTPUT=$(zellij web --create-token 2>&1)
+    SAVED_TOKEN=$(echo "$TOKEN_OUTPUT" | grep -oP 'token_\d+: \K[\w-]+' || echo "")
+
+    if [ -n "$SAVED_TOKEN" ]; then
+      # Save the token for future use
+      echo "$SAVED_TOKEN" > "$TOKEN_FILE"
+      # Save token database for persistence
+      cp /home/flexy/.local/share/zellij/tokens.db "$TOKEN_DB"
+      echo "Token saved to $TOKEN_FILE"
+      echo "Token database saved to $TOKEN_DB"
+    else
+      echo "Warning: Failed to create token automatically"
+      echo "You can create one inside Zellij with: Ctrl+o then s"
+    fi
+  fi
+
+  echo ""
+  echo "========================================"
+  echo "  LOGIN TOKEN"
+  echo "========================================"
+  if [ -n "$SAVED_TOKEN" ]; then
+    echo "$SAVED_TOKEN"
+  else
+    echo "(No token available - create one manually)"
+  fi
+  echo "========================================"
+  echo ""
+  echo "Starting Zellij Web Server..."
+
+  # Start the web server in foreground (this keeps the container running)
+  # The session 'shared_session' will be accessible via URL scheme:
+  # https://localhost:9681/shared_session
+  exec zellij web
 else
   # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行
   cd "$WORKING_DIRECTORY" || {

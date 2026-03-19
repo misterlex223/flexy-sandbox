@@ -23,6 +23,23 @@ on_force_close "quit"
 default_cwd "/home/flexy/workspace"
 default_shell "/bin/bash"  // Ensure bash is used instead of sh
 
+// Web Server configuration - using Zellij built-in web client
+web_server true              // Auto-start web server on Zellij startup
+web_server_ip "0.0.0.0"      // Listen on all interfaces (for Docker)
+web_server_port 9681         // Use port 9681 (same as ttyd)
+web_server_cert "/home/flexy/.local/share/zellij/cert.pem"     // SSL certificate (self-signed)
+web_server_key "/home/flexy/.local/share/zellij/key.pem"       // SSL private key (self-signed)
+enforce_https_on_localhost false  // Allow HTTP on localhost for testing
+
+// Web Client terminal appearance
+web_client {
+  font "monospace"      // Browser default monospace font
+  cursor_blink true     // Enable cursor blink
+  cursor_style "block"  // Block cursor style
+  cursor_inactive_style "outline"
+  mac_option_is_meta false  // Mac Option key is not Meta
+}
+
 // Simplified UI for cleaner experience
 ui {
   pane_frames {

@@ -5,10 +5,9 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 更新套件列表並安裝基本工具
-# Install ttyd and Zellij
-# ttyd: for sharing the terminal over the web
-# Zellij: for creating a persistent, shareable session (tmux replacement)
-# Note: We install ttyd from GitHub releases to get the latest version with IME fixes
+# Install Zellij with built-in Web Client
+# Zellij: for creating persistent, shareable sessions with web access
+# Note: ttyd removed - using Zellij's built-in web server instead
 RUN apt-get update && apt-get install -y \
     curl \
     wget \
@@ -34,9 +33,10 @@ RUN ZELLIJ_VERSION=$(curl -s https://api.github.com/repos/zellij-org/zellij/rele
 
 # Install latest ttyd from GitHub releases (fixes Chinese IME duplication issues)
 # Using version 1.7.7 or later which includes xterm.js fixes for IME composition
-RUN TTYD_VERSION=1.7.7 && \
-    wget -q https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64 -O /usr/local/bin/ttyd && \
-    chmod +x /usr/local/bin/ttyd
+# NOTE: Commented out - using Zellij's built-in web server instead
+# RUN TTYD_VERSION=1.7.7 && \
+#     wget -q https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64 -O /usr/local/bin/ttyd && \
+#     chmod +x /usr/local/bin/ttyd
 
 # 生成中文 locale 支援
 RUN locale-gen zh_TW.UTF-8 && update-locale LANG=zh_TW.UTF-8
@@ -59,6 +59,13 @@ RUN useradd -ms /bin/bash flexy \
     && mkdir -p /etc/sudoers.d \
     && echo 'flexy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip3, /usr/bin/pip, /usr/local/bin/npx, /usr/local/bin/npm, /usr/local/bin/uv, /usr/local/bin/uvx' > /etc/sudoers.d/flexy-nopasswd \
     && chmod 440 /etc/sudoers.d/flexy-nopasswd
+
+# Generate self-signed SSL certificate for Zellij Web Server
+# Required when binding to 0.0.0.0 (non-loopback IP)
+# Also initialize .local directory structure with proper ownership
+RUN mkdir -p /home/flexy/.local/share/zellij && \
+    openssl req -x509 -newkey rsa:4096 -keyout /home/flexy/.local/share/zellij/key.pem -out /home/flexy/.local/share/zellij/cert.pem -days 365 -nodes -subj "/CN=localhost" && \
+    chown -R flexy:flexy /home/flexy/.local
 
 # 安裝 Node.js (使用 NodeSource 倉庫以獲得最新版本)
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - \
@@ -215,8 +222,8 @@ SHELL ["/bin/bash", "-c"]
 ENTRYPOINT ["/usr/local/bin/init.sh"]
 CMD ["/bin/bash"]
 
-# Expose ttyd port and CoSpec AI ports
-  # Shared ttyd (Zellij with multiple windows: user, claude, qwen)
+# Expose Zellij Web Server port and CoSpec AI ports
+  # Zellij built-in web server (replaces ttyd for WebTTY mode)
 EXPOSE 9681
   # CoSpec AI unified server
 EXPOSE 9280
