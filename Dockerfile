@@ -60,11 +60,9 @@ RUN useradd -ms /bin/bash flexy \
     && echo 'flexy ALL=(ALL) NOPASSWD: /usr/bin/apt-get, /usr/bin/apt, /usr/bin/dpkg, /usr/bin/snap, /usr/bin/pip3, /usr/bin/pip, /usr/local/bin/npx, /usr/local/bin/npm, /usr/local/bin/uv, /usr/local/bin/uvx' > /etc/sudoers.d/flexy-nopasswd \
     && chmod 440 /etc/sudoers.d/flexy-nopasswd
 
-# Generate self-signed SSL certificate for Zellij Web Server
-# Required when binding to 0.0.0.0 (non-loopback IP)
-# Also initialize .local directory structure with proper ownership
+# Initialize .local directory structure with proper ownership
+# SSL certificates no longer needed - using HTTP mode for Cloudflare Tunnel compatibility
 RUN mkdir -p /home/flexy/.local/share/zellij && \
-    openssl req -x509 -newkey rsa:4096 -keyout /home/flexy/.local/share/zellij/key.pem -out /home/flexy/.local/share/zellij/cert.pem -days 365 -nodes -subj "/CN=localhost" && \
     chown -R flexy:flexy /home/flexy/.local
 
 # 安裝 Node.js (使用 NodeSource 倉庫以獲得最新版本)
@@ -99,7 +97,8 @@ COPY ai-session-monitor.js /usr/local/bin/ai-session-monitor.js
 COPY configure-mcp.sh /usr/local/bin/configure-mcp.sh
 COPY scripts/merge-mcp-config.sh /scripts/merge-mcp-config.sh
 COPY scripts/install-ai-tools.sh /scripts/install-ai-tools.sh
-RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh /scripts/merge-mcp-config.sh /scripts/install-ai-tools.sh
+COPY scripts/zellij-web-proxy.js /scripts/zellij-web-proxy.js
+RUN chmod +x /usr/local/bin/init.sh /usr/local/bin/configure-mcp.sh /scripts/merge-mcp-config.sh /scripts/install-ai-tools.sh /scripts/zellij-web-proxy.js
 
 # Create Qwen and Claude configuration directories
 RUN mkdir -p /home/flexy/.qwen && \

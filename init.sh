@@ -345,7 +345,7 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   echo "  Zellij Web Client Starting..."
   echo "========================================"
   echo ""
-  echo "Web Client will be available at: https://localhost:9681"
+  echo "Web Client will be available at: http://localhost:9681"
   echo "Session name: shared_session"
   echo ""
 
@@ -400,11 +400,20 @@ if [ "$ENABLE_WEBTTY" = "true" ]; then
   fi
   echo "========================================"
   echo ""
+  echo "Starting Zellij Web Proxy..."
+  echo "Proxy: 0.0.0.0:9681 -> 127.0.0.1:9682"
+
+  # Start the HTTP proxy in background
+  node /scripts/zellij-web-proxy.js &
+  PROXY_PID=$!
+  echo "Proxy started (PID: $PROXY_PID)"
+
+  echo ""
   echo "Starting Zellij Web Server..."
 
   # Start the web server in foreground (this keeps the container running)
   # The session 'shared_session' will be accessible via URL scheme:
-  # https://localhost:9681/shared_session
+  # http://localhost:9681/shared_session (through proxy)
   exec zellij web
 else
   # 預設模式：切換到工作目錄並啟動 bash shell，但保持 CoSpec AI 在後台運行

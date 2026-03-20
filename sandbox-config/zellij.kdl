@@ -25,11 +25,10 @@ default_shell "/bin/bash"  // Ensure bash is used instead of sh
 
 // Web Server configuration - using Zellij built-in web client
 web_server true              // Auto-start web server on Zellij startup
-web_server_ip "0.0.0.0"      // Listen on all interfaces (for Docker)
-web_server_port 9681         // Use port 9681 (same as ttyd)
-web_server_cert "/home/flexy/.local/share/zellij/cert.pem"     // SSL certificate (self-signed)
-web_server_key "/home/flexy/.local/share/zellij/key.pem"       // SSL private key (self-signed)
-enforce_https_on_localhost false  // Allow HTTP on localhost for testing
+web_server_ip "127.0.0.1"    // Loopback only - accessed via proxy
+web_server_port 9682         // Internal port (proxy listens on 9681)
+// Using HTTP mode with loopback binding - no SSL required
+// External traffic goes through zellij-web-proxy.js (0.0.0.0:9681 -> 127.0.0.1:9682)
 
 // Web Client terminal appearance
 web_client {
